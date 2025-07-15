@@ -192,8 +192,16 @@ def run_simulation():
                 cloud_body.mutable_xyzs()[:3, :] = trail_body
                 meshcat.SetObject("COMs/robot_com_trail", cloud_body, rgba=Rgba(1, 0, 0, 0.5))
 
+        controller_context = diagram.GetSubsystemContext(controller, context)
+        controller_output_port = controller.get_output_port(0) # Get the output port of the controller
+
         # Run simulation for timesteps
         for idx in range(N_simulation_steps):
+            time = context.get_time()
+            controller_output = controller_output_port.Eval(controller_context)
+
+            # print(f"Simulation time: {time:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}")
+
             simulator.AdvanceTo(simulation_time_step*(idx+1))
 
             # Save state data
