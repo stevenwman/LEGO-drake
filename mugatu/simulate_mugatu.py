@@ -92,10 +92,9 @@ def run_simulation():
         # print("Starting simulation...")
         # print("start state:", start_state)
 
-
         # Setup controller
         controller = builder.AddSystem(Controller(scale = scale, 
-                                                  hip_kp=1,
+                                                  hip_kp=2,
                                                   hip_kd=0,
                                                   ground_friction = ground_friction, 
                                                   feet_friction = feet_friction, 
@@ -261,8 +260,6 @@ def run_simulation():
         
         visualizer.PublishRecording()
         xf =plant.GetPositionsAndVelocities(plant_context)
-        print()
-        print(f"{meshcat.web_url()}/download")
 
         return simulated_states, hip_real_torque, left_contact_forces, left_contact_points, right_contact_forces, right_contact_points, com_x_positions, com_y_positions, com_z_positions, com_vx, com_vy, com_vz, total_mass, contact_logging_times, com_per_link, frequency, wait_time
 
@@ -270,9 +267,7 @@ def run_simulation():
         # run sim
         T = 0.001 #timestep
         sim_time = int(duration * (1/T)) #time in seconds
-
         t_calib = int(3 * (1/T))
-
         start_state = get_home_state(scale)
 
         for i in range(2):
@@ -340,15 +335,18 @@ def run_simulation():
                     controller_period = 0.0005,
                     meshcat = meshcat, 
                     start_state=start_state)
-
-        for i in range(10):
-            time.sleep(1)  # wait for the recording to finish
-            print(f"Waiting for recording to finish... {i+1}/10", end='\r', flush=True)
         
         return states, hip_real_torque, left_contact_forces, left_contact_points, right_contact_forces, right_contact_points, com_x, com_y, com_z, com_vx, com_vy, com_vz, total_mass, contact_logging_times, com_per_link, frequency, wait_time, T 
 
 
-    def run_sim_save_data(scale, ground_friction, feet_friction, plots_folder_path, csvs_folder_path, plot_data, meshcat = meshcat):
+    def run_sim_save_data(scale, 
+                          ground_friction, 
+                          feet_friction, 
+                          plots_folder_path, 
+                          csvs_folder_path, 
+                          plot_data, 
+                          all_data_path,
+                          meshcat = meshcat):
         states, hip_real_torque, left_contact_forces, left_contact_points, right_contact_forces, right_contact_points, com_x, com_y, com_z, com_vx, com_vy, com_vz, total_mass, contact_logging_times, com_per_link, frequency, wait_time, T = run_sim(scale = scale, ground_friction = ground_friction, feet_friction = feet_friction, meshcat = meshcat)
 
         # get state from sim
@@ -570,6 +568,11 @@ def run_simulation():
 
             csvs_folder_path +=".csv"
             df.to_csv(csvs_folder_path, index=True)
+
+            html_content = meshcat.StaticHtml()
+            with open(all_data_path + "/meshcat_viz.html", "w") as f:
+                f.write(html_content)
+
             print(f"Sim data saved to {csvs_folder_path}")
         else:
             pass
@@ -598,7 +601,15 @@ def run_simulation():
 
     # Run sim and save data, run sim, or run visualizer
     if simulate_walker & save_data:
-        run_sim_save_data(scale = scale, ground_friction = ground_friction, feet_friction=feet_friction, plots_folder_path = plots_folder_path, csvs_folder_path = csvs_path, plot_data = save_data, meshcat = meshcat)
+        run_sim_save_data(scale = scale, 
+                          ground_friction = ground_friction, 
+                          feet_friction=feet_friction, 
+                          plots_folder_path = plots_folder_path, 
+                          csvs_folder_path = csvs_path, 
+                          plot_data = save_data, 
+                          all_data_path = alldata_folder_path,
+                          meshcat = meshcat, 
+                          )
     elif simulate_walker:
         run_sim(scale = scale, ground_friction = ground_friction, feet_friction=feet_friction, meshcat = meshcat)
     else:
