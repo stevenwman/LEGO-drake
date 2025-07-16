@@ -1,6 +1,3 @@
-# import omni
-# import omni.kit.pipapi
-# omni.kit.pipapi.install(“drake”, module=“pydrake”)
 import csv
 import os
 
@@ -28,7 +25,7 @@ from matplotlib.colors import Normalize
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from itertools import product
 from multiprocessing import Pool
-from joblib import Parallel, delayed
+# from joblib import Parallel, delayed
 import csv
 # from scipy.optimize import differential_evolution
 from pydrake.all import (
@@ -72,8 +69,6 @@ from pydrake.all import (
     PointCloud,
     Rgba
 )
-
-
 
 
 def get_amplitude(array, array_name, stabilization_period):

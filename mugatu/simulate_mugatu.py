@@ -1,7 +1,7 @@
 import sys
 import os
 import argparse
-# sys.path.append(os.getcwd())  # add current dir to import Mugatu package
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 sys.path.append(os.path.abspath(os.path.join(current_dir, "..")))
@@ -13,6 +13,8 @@ from plot_utilities import *
 from animate_utilities import *
 from model_definition import *
 from meshcat_setup import start_meshcat
+
+import time
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Run Mugatu walker simulation.")
@@ -73,7 +75,8 @@ def run_simulation():
         simulation_time_step, #sets timestep 
         controller_period, 
         start_state = get_home_state(scale),
-        meshcat = meshcat
+        meshcat = meshcat, 
+        calib=False
         ):
 
         # Setup Drake paramaters, initialize walker
@@ -92,9 +95,9 @@ def run_simulation():
 
         # Setup controller
         controller = builder.AddSystem(Controller(scale = scale, 
-                                                  ground_friction = ground_friction, 
-                                                  feet_friction = feet_friction, 
-                                                  control_period=controller_period))
+                                                ground_friction = ground_friction, 
+                                                feet_friction = feet_friction, 
+                                                control_period=controller_period, calib=calib))
         builder.Connect(plant.get_state_output_port(),controller.GetInputPort("state"))
         builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
         
@@ -197,10 +200,10 @@ def run_simulation():
 
         # Run simulation for timesteps
         for idx in range(N_simulation_steps):
-            time = context.get_time()
+            timer = context.get_time()
             controller_output = controller_output_port.Eval(controller_context)
 
-            # print(f"Simulation time: {time:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}")
+            print(f"Simulation time: {timer:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
 
             simulator.AdvanceTo(simulation_time_step*(idx+1))
 
@@ -254,13 +257,59 @@ def run_simulation():
         
         visualizer.PublishRecording()
         xf =plant.GetPositionsAndVelocities(plant_context)
+        print()
         print(f"{meshcat.web_url()}/download")
+
         return simulated_states, hip_real_torque, left_contact_forces, left_contact_points, right_contact_forces, right_contact_points, com_x_positions, com_y_positions, com_z_positions, com_vx, com_vy, com_vz, total_mass, contact_logging_times, com_per_link, frequency, wait_time
 
     def run_sim( scale, ground_friction, feet_friction, meshcat = meshcat):
         # run sim
         T = 0.001 #timestep
         sim_time = int(duration * (1/T)) #time in seconds
+
+        t_calib = int(3 * (1/T))
+
+        start_state = get_home_state(scale)
+
+        for i in range(2):
+            (states, 
+                hip_real_torque,
+                left_contact_forces, 
+                left_contact_points, 
+                right_contact_forces, 
+                right_contact_points, 
+                com_x,
+                com_y,
+                com_z,
+                com_vx,
+                com_vy,
+                com_vz,
+                total_mass,
+                contact_logging_times,
+                com_per_link,
+                frequency, 
+                wait_time
+            ) = simulate(scale = scale,
+                        ground_friction = ground_friction,
+                        feet_friction = feet_friction,
+                        N_simulation_steps = t_calib,
+                        simulation_time_step = T,
+                        controller_period = 0.0005,
+                        meshcat = meshcat, 
+                        start_state=start_state,
+                        calib=True)
+            
+            print("Quaternion calibration done")
+
+            start_idx = int(0.1 * states.shape[0])  # Start after 100ms
+            final_pos = states[-1, 4:7]  # Get the final position
+            quats = states[start_idx:, 0:4]
+            mean_quat = np.mean(quats, axis=0)
+            mean_quat /= np.linalg.norm(mean_quat)  # Normalize the quaternion
+            
+            start_state = get_home_state(scale)
+            start_state[0:4] = mean_quat  # Set the calibrated quaternion to the start state
+            start_state[4:7] = final_pos  # Set the final position to the start state
 
         (states, 
             hip_real_torque,
@@ -285,7 +334,12 @@ def run_simulation():
                     N_simulation_steps = sim_time,
                     simulation_time_step = T,
                     controller_period = 0.0005,
-                    meshcat = meshcat)
+                    meshcat = meshcat, 
+                    start_state=start_state)
+
+        for i in range(10):
+            time.sleep(1)  # wait for the recording to finish
+            print(f"Waiting for recording to finish... {i+1}/10", end='\r', flush=True)
         
         return states, hip_real_torque, left_contact_forces, left_contact_points, right_contact_forces, right_contact_points, com_x, com_y, com_z, com_vx, com_vy, com_vz, total_mass, contact_logging_times, com_per_link, frequency, wait_time, T 
 
@@ -322,7 +376,8 @@ def run_simulation():
         end_time = start_time + period
         start_idx = np.searchsorted(time_array, start_time)
         end_idx = np.searchsorted(time_array, end_time, side='right')
-        stabilization_period = int(5 * (1/T))
+        # stabilization_period = int(5 * (1/T))
+        stabilization_period = 1
         print("Total mass in kg:", total_mass)
 
         delta_x = np.diff(x)
@@ -372,21 +427,21 @@ def run_simulation():
                     com_per_link)
             print("_"*120)
             
-            print("Plotting RPY data....")
-            rolls, pitches, yaws, rolls_degrees, pitches_degrees, yaws_degrees, pitch_rate, roll_rate, yaw_rate, omega_x, omega_y, omega_z, avg_roll_amp, avg_pitch_amp, avg_yaw_amp = plot_angles(time_array,
-                                                                            plots_folder_path,
-                                                                            qw, 
-                                                                            qx, 
-                                                                            qy, 
-                                                                            qz, 
-                                                                            omega_x_rad, 
-                                                                            omega_y_rad, 
-                                                                            omega_z_rad,
-                                                                            start_idx,
-                                                                            end_idx,
-                                                                            duration, 
-                                                                            stabilization_period)
-            print("_"*120)
+            # print("Plotting RPY data....")
+            # rolls, pitches, yaws, rolls_degrees, pitches_degrees, yaws_degrees, pitch_rate, roll_rate, yaw_rate, omega_x, omega_y, omega_z, avg_roll_amp, avg_pitch_amp, avg_yaw_amp = plot_angles(time_array,
+            #                                                                 plots_folder_path,
+            #                                                                 qw, 
+            #                                                                 qx, 
+            #                                                                 qy, 
+            #                                                                 qz, 
+            #                                                                 omega_x_rad, 
+            #                                                                 omega_y_rad, 
+            #                                                                 omega_z_rad,
+            #                                                                 start_idx,
+            #                                                                 end_idx,
+            #                                                                 duration, 
+            #                                                                 stabilization_period)
+            # print("_"*120)
 
             print("Plotting position and velocity data...")
             plot_position_and_velocity(time_array,
@@ -422,27 +477,27 @@ def run_simulation():
                                     stabilization_period = stabilization_period)
             print("_"*120)
 
-            print("Plotting stability data...")
-            plot_stability_analysis(time_array,
-                            plots_folder_path,
-                            start_idx,
-                            end_idx,
-                            duration,
-                            stabilization_period,
-                            pitches,
-                            pitch_rate,
-                            rolls,
-                            roll_rate,
-                            yaws,
-                            yaw_rate,
-                            com_x,
-                            com_y,
-                            com_z,
-                            com_vx,
-                            com_vy,
-                            com_vz
-                            )
-            print("_"*120)
+            # print("Plotting stability data...")
+            # plot_stability_analysis(time_array,
+            #                 plots_folder_path,
+            #                 start_idx,
+            #                 end_idx,
+            #                 duration,
+            #                 stabilization_period,
+            #                 pitches,
+            #                 pitch_rate,
+            #                 rolls,
+            #                 roll_rate,
+            #                 yaws,
+            #                 yaw_rate,
+            #                 com_x,
+            #                 com_y,
+            #                 com_z,
+            #                 com_vx,
+            #                 com_vy,
+            #                 com_vz
+            #                 )
+            # print("_"*120)
 
             # save_data
             data = {
@@ -454,15 +509,15 @@ def run_simulation():
                 "Ground_mu-static value=": ground_friction,
                 "Feet_mu-dynamic value": feet_friction,
                 "Feet_mu-static value": feet_friction,
-                "Pitch_degrees": pitches_degrees,
-                "Roll_degrees": rolls_degrees,
-                "Yaw_degrees": yaws_degrees,
-                "Pitch_radians": pitches,
-                "Average_pitch_amplitude_after_stable_walking_degrees": avg_pitch_amp,
-                "Roll_radians": rolls,
-                "Average_roll_amplitude_after_stable_walking_degrees": avg_roll_amp,
-                "Yaw_radians": yaws,
-                "Average_yaw_amplitude_after_stable_walking_degrees": avg_yaw_amp,
+                # "Pitch_degrees": pitches_degrees,
+                # "Roll_degrees": rolls_degrees,
+                # "Yaw_degrees": yaws_degrees,
+                # "Pitch_radians": pitches,
+                # "Average_pitch_amplitude_after_stable_walking_degrees": avg_pitch_amp,
+                # "Roll_radians": rolls,
+                # "Average_roll_amplitude_after_stable_walking_degrees": avg_roll_amp,
+                # "Yaw_radians": yaws,
+                # "Average_yaw_amplitude_after_stable_walking_degrees": avg_yaw_amp,
                 "qw": qw,
                 "qx": qx,
                 "qy":qy,
@@ -479,12 +534,12 @@ def run_simulation():
                 "COM_x_velocity":com_vx, 
                 "COM_y_velocity":com_vy, 
                 "COM_z_velocity":com_vz,
-                "Roll_rate_radpersec": roll_rate,
-                "Pitch_rate_radpersec": pitch_rate, 
-                "Yaw_rate_radpersec": yaw_rate, 
-                "X_euler _rate_radpersec": omega_x,
-                "Y_euler_rate_radpersec": omega_y,
-                "Z_euler_rate_radpersec": omega_z, 
+                # "Roll_rate_radpersec": roll_rate,
+                # "Pitch_rate_radpersec": pitch_rate, 
+                # "Yaw_rate_radpersec": yaw_rate, 
+                # "X_euler _rate_radpersec": omega_x,
+                # "Y_euler_rate_radpersec": omega_y,
+                # "Z_euler_rate_radpersec": omega_z, 
                 "Left_foot_fx": left_fx,
                 "Left_foot_fy": left_fy,
                 "Left_foot_fz": -left_fz,

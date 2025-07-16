@@ -8,315 +8,6 @@ curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 urdf_file_name = "quick_sim/stick_bot_generated_fixed_inertia.urdf"
 
-# def create_walker_urdf(scale=1, ground_friction=0.5, feet_friction=0.3): 
-
-#     def s(v):  # scale vector
-#         return ' '.join(str(scale * float(x)) for x in v.split())
-
-#     def s_mass(m):  # scale mass
-#         return str((scale ** 3) * float(m))
-
-#     def s_inertia(i):  # scale inertia
-#         return str((scale ** 5) * float(i))
-
-#     def mesh_res_hint(val):  # scale mesh resolution
-#         return str(scale * float(val))
-
-    
-#     return f"""
-#        <?xml version="1.0" ?>
-# <!-- Generated using onshape-to-robot -->
-# <!-- Onshape https://cad.onshape.com/documents/d4162f5f6a620a91d67bd0f0/w/d866279445751daabbe0c95e/e/13afda9ab73add5250d40401 -->
-# <robot name="walker">
-
-#   <link name="ground">
-#       <visual>
-#       <origin xyz="{s('0 0 -0.25')}" rpy="0 0 0" />
-#       <geometry>
-#           <box size="{s('10 10 0.5')}" />
-#       </geometry>
-#       <material>
-#           <color rgba="0.93 .74 .4 1" />
-#       </material>
-#       </visual>
-#       <collision>
-#       <origin xyz="{s('0 0 -0.25')}" rpy="0 0 0" />
-#       <geometry>
-#           <box size="{s('10 10 0.5')}" />
-#       </geometry>
-#           <drake:proximity_properties>
-#           <drake:compliant_hydroelastic/>
-#           <drake:hydroelastic_modulus value="{s('1e8')}"/>
-#           <drake:mu_dynamic value="{ground_friction}"/>
-#           <drake:mu_static value="{ground_friction}"/>
-#           </drake:proximity_properties>
-#       </collision>
-#   </link>
-
-#   <joint name="ground_weld" type="fixed">
-#       <parent link="world" />
-#       <child link="ground" />
-#   </joint>
-
-#   <!-- Link right_leg -->
-#   <link name="right_leg">
-#     <inertial>
-#       <origin xyz="{s('0.00339271 -0.0683175 0.066068')}" rpy="0 0 0"/>
-#       <mass value="{s_mass('0.265796')}"/>
-#       <inertia ixx="{s_inertia('0.000867908')}" 
-#       ixy="{s_inertia('-9.90116e-05')}" 
-#       ixz="{s_inertia('-1.96539e-05')}" 
-#       iyy="{s_inertia('0.000418449')}" 
-#       iyz="{s_inertia('-0.000161766')}" 
-#       izz="{s_inertia('0.000602868')}"/>
-#     </inertial>
-
-#     <!-- Part left_arm -->
-#     <visual>
-#       <origin xyz="{s('0.0781384 0.0652662 -0.0232028')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_arm.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="left_arm_material">
-#         <color rgba="1 1 1 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('0.0781384 0.0652662 -0.0232028')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_arm.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-
-#     <!-- Part right_leg -->
-#     <visual>
-#       <origin xyz="{s('-0.0255 0.02 -0.005')}" rpy="1.5708 3.40689e-23 1.27453e-26"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_leg.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="right_leg_material">
-#         <color rgba="1 1 1 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('-0.0255 0.02 -0.005')}" rpy="1.5708 3.40689e-23 1.27453e-26"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_leg.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-
-#     <!-- Part right_battery -->
-#     <visual>
-#       <origin xyz="{s('0.0347476 -0.0595251 0.0792817')}" rpy="1.5708 -1.79157e-17 2.96706"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_battery.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="right_battery_material">
-#         <color rgba="0.00784314 0.239216 0.823529 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('0.0347476 -0.0595251 0.0792817')}" rpy="1.5708 -1.79157e-17 2.96706"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_battery.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-#   </link>
-
-
-#   <!-- Link left_leg -->
-#   <link name="left_leg">
-#     <inertial>
-#       <origin xyz="{s('0.0165799 0.0617476 -0.0445552')}" rpy="0 0 0"/>
-#       <mass value="{s_mass('0.28377')}"/>
-#       <inertia ixx="{s_inertia('0.000997428')}" 
-#       ixy="{s_inertia('-0.000118618')}" 
-#       ixz="{s_inertia('3.35196e-05')}" 
-#       iyy="{s_inertia('0.000490668')}" 
-#       iyz="{s_inertia('0.000210604')}" 
-#       izz="{s_inertia('0.000678868')}"/>
-#     </inertial>
-
-#     <!-- Part right_arm -->
-#     <visual>
-#       <origin xyz="{s('0.0924094 0.198961 -0.017434')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_arm.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="right_arm_material">
-#         <color rgba="1 1 1 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('0.0924094 0.198961 -0.017434')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_arm.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-
-#     <!-- Part right_battery_2 -->
-#     <visual>
-#       <origin xyz="{s('-0.00788849 0.0842042 -0.0613817')}" rpy="-1.5708 3.37492e-21 -0.174533"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_battery.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="right_battery_2_material">
-#         <color rgba="0.00784314 0.239216 0.823529 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('-0.00788849 0.0842042 -0.0613817')}" rpy="-1.5708 3.37492e-21 -0.174533"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_battery.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-
-#     <!-- Part left_leg -->
-#     <visual>
-#       <origin xyz="{s('-0.0112911 0.153343 0.023')}" rpy="1.5708 -1.07671e-23 1.46076e-20"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_leg.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="left_leg_material">
-#         <color rgba="1 1 1 1.0"/>
-#       </material>
-#     </visual>
-#     <!-- 
-#     <collision>
-#       <origin xyz="{s('-0.0112911 0.153343 0.023')}" rpy="1.5708 -1.07671e-23 1.46076e-20"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_leg.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#     </collision>
-#     -->
-#   </link>
-
-#     <!-- Link right_foot -->
-#   <link name="right_foot">
-#     <inertial>
-#       <origin xyz="{s('0.088555 0.0226985 -0.140596')}" rpy="0 0 0"/>
-#       <mass value="{s_mass('0.130181')}"/>
-#       <inertia ixx="{s_inertia('8.91682e-05')}" 
-#       ixy="{s_inertia('-3.04732e-08')}" 
-#       ixz="{s_inertia('-3.66091e-06')}" 
-#       iyy="{s_inertia('4.06624e-05')}" 
-#       iyz="{s_inertia('9.09291e-09')}" 
-#       izz="{s_inertia('0.000119968')}"/>
-#     </inertial>
-#     <!-- Part right_foot -->
-#     <visual>
-#       <origin xyz="{s('0.0658465 0.0227089 -0.133251')}" rpy="-1.41849e-10 -0.00139484 2.03391e-07"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_foot.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="right_foot_material">
-#         <color rgba="0.796078 0.823529 0.937255 1.0"/>
-#       </material>
-#     </visual>
-#     <collision>
-#       <origin xyz="{s('0.0658465 0.0227089 -0.133251')}" rpy="-1.41849e-10 -0.00139484 2.03391e-07"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/right_foot.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <drake:proximity_properties>
-#           <drake:rigid_hydroelastic/>
-#           <drake:mu_dynamic value="{feet_friction}"/>
-#           <drake:mu_static value="{feet_friction}"/>
-#           <drake:hydroelastic_modulus value="{s('5.0e7')}"/>
-#           <drake:mesh_resolution_hint value="{s('0.1')}"/>
-#       </drake:proximity_properties>
-#     </collision>
-#   </link>
-
-
-#   <!-- Link left_foot -->
-#   <link name="left_foot">
-#     <inertial>
-#       <origin xyz="{s('-1.0409e-05 0.00737654 0.0176982')}" rpy="0 0 0"/>
-#       <mass value="{s_mass('0.130181')}"/>
-#       <inertia ixx="{s_inertia('4.06624e-05')}" 
-#       ixy="{s_inertia('-9.09829e-09')}" 
-#       ixz="{s_inertia('-3.05961e-08')}" 
-#       iyy="{s_inertia('0.000119978')}" 
-#       iyz="{s_inertia('3.61793e-06')}" 
-#       izz="{s_inertia('8.9158e-05')}"/>
-#     </inertial>
-#     <!-- Part left_foot -->
-#     <visual>
-#       <origin xyz="{s('-3.46945e-18 2.77556e-17 -0.0576688')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_foot.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <material name="left_foot_material">
-#         <color rgba="0.796078 0.823529 0.937255 1.0"/>
-#       </material>
-#     </visual>
-#     <collision>
-#       <origin xyz="{s('-3.46945e-18 2.77556e-17 -0.0576688')}" rpy="1.5708 1.5708 0"/>
-#       <geometry>
-#         <mesh filename="file://{curr_dir}/mugatu_meshes/left_foot.obj" scale="{scale} {scale} {scale}"/>
-#       </geometry>
-#       <drake:proximity_properties>
-#           <drake:rigid_hydroelastic/>
-#           <drake:mu_dynamic value="{feet_friction}"/>
-#           <drake:mu_static value="{feet_friction}"/>
-#           <drake:hydroelastic_modulus value="{s('5.0e7')}"/>
-#           <drake:mesh_resolution_hint value="{s('0.1')}"/>
-#       </drake:proximity_properties>
-#     </collision>
-#   </link>
-
-
-#   <!-- Joint from left_leg to left_foot -->
-#   <joint name="left_foot_joint" type="fixed">
-#     <origin xyz="{s('0.0142089 0.133343 0.018')}" rpy="-2.46197e-19 -1.07671e-23 1.46076e-20"/>
-#     <parent link="left_leg"/>
-#     <child link="left_foot"/>
-#     <axis xyz="0 0 1"/>
-#   </joint>
-
-
-#   <!-- Joint from right_leg to left_leg -->
-#   <joint name="hip" type="revolute">
-#     <origin xyz="{s('-0.0142089 -0.133343 0.0301')}" rpy="-6.79877e-19 2.60008e-23 0.000145816"/>
-#     <parent link="right_leg"/>
-#     <child link="left_leg"/>
-#     <axis xyz="0 0 1"/>
-#     <limit effort="{s('10')}" velocity="{s('10')}" lower="-1.57094" upper="1.57065"/>
-#   </joint>
-
-#   <!-- Joint from right_foot to right_leg -->
-#   <joint name="right_foot_joint" type="fixed">
-#     <origin xyz="{s('0.0708465 0.0227089 -0.133244')}" rpy="-1.57219 1.41849e-10 1.5708"/>
-#     <parent link="right_foot"/>
-#     <child link="right_leg"/>
-#     <axis xyz="0 0 1"/>
-#   </joint>
-
-#     <transmission name="hip_joint_transmission">
-#         <type>transmission_interface/SimpleTransmission</type>
-#         <joint name="hip">
-#             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-#             </joint>
-        
-#         <actuator name="hip_joint_motor">
-#             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-#         <mechanicalReduction>1</mechanicalReduction>
-#         </actuator>
-#     </transmission>
-#   </robot>
-#     """
-
 
 def setup_walker_plant(scale, ground_friction, feet_friction, timestep=0.001, filename=None):
     builder = DiagramBuilder()
@@ -366,7 +57,7 @@ def get_home_state(scale):
     
     # Regular sim home_state values, 
     home_state[0:4] = RollPitchYaw(roll=0,pitch=0,yaw=0).ToQuaternion().wxyz()
-    home_state[6] = 2 * 0.16 # starting height
+    home_state[6] = 0.16 # starting height
 
     # # use this for checking the natural frequency. This drops the robot in at an angle
     # home_state[0:4] = RollPitchYaw(roll=np.pi/2,pitch=0,yaw=0).ToQuaternion().wxyz()
@@ -517,9 +208,11 @@ class Controller(LeafSystem):
         hip_kp=8, 
         hip_ki=0,
         hip_kd=0.1,
-        threshold_force = 0.0001, # in N, To set contact mode
+        threshold_force = 0.0001, # in N, To set contact mode,
+        calib = False
         ):
 
+        self.calib = calib
         # Assign the parameters to the instance variables
         self.hip_kp = hip_kp * 1000 #hip_kp = 1 for scale = 0.166 (Zippy scale), hip_kp = 8000 for scale 6.67 (Big Foot scale)
         self.hip_ki = hip_ki
@@ -586,7 +279,6 @@ class Controller(LeafSystem):
             "control", self.m , self.SetOutput
         )
 
-
         # Add periodic update event
         self.DeclarePeriodicDiscreteUpdateEvent(self.control_period, 0, self.Update)
     
@@ -613,8 +305,8 @@ class Controller(LeafSystem):
         difference_state[0:3] = difference_rotation
         difference_state[3:] = desired_state[4:] - current_state[4:]
         return difference_state
-    @staticmethod
     
+    @staticmethod
     def ComputeControl(self, current_state, desired_state, gain_matrix,feedforward=None):
         error = desired_state[7] - current_state[7]
         self.integral_error += (error * self.control_period)
@@ -657,17 +349,17 @@ class Controller(LeafSystem):
         ang_freq = 2 * np.pi * self.frequency
         servo_input = self.amplitude * np.sin(ang_freq * adjusted_time)
         # print("servo_input", servo_input)
-        if elapsed_time > act_start_time: # give time for sim to sit and settle
+        if elapsed_time > act_start_time and not self.calib: # give time for sim to sit and settle
             self.target_state[7] = servo_input # comment this out when you're getting sim natural frequency
         else:
            pass
     
         # compute control
-        self.control_signal[:] = self.ComputeControl(self,
+        self.control_signal[:] = np.clip(self.ComputeControl(self,
             current_state=self.current_state,
             desired_state=self.target_state,
             gain_matrix=self.gain_matrix
-            )
+            ), -20, 20)
 
     def SetOutput(self, context, output):
         output.SetFromVector(self.control_signal)
