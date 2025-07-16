@@ -39,7 +39,9 @@ params = {
         'ground_friction' : 0.9,
         'feet_friction' : 0.9,
         'hydroelastic_modulus' : 5e7,
-        'mesh_resolution_hint' : 0.1,
+        'ground_hydroelastic_modulus' : 1e8,
+        'ground_mesh_resolution_hint' : 0.01,
+        'mesh_resolution_hint' : 0.01,
     }     
 }
 
@@ -192,11 +194,11 @@ ET.SubElement(ET.SubElement(ground_visual, 'material'), 'color', rgba="0.93 .74 
 ground_collision = ET.SubElement(ground, 'collision')
 ET.SubElement(ground_collision, 'origin', xyz="0 0 -0.25", rpy="0 0 0")
 ET.SubElement(ET.SubElement(ground_collision, 'geometry'), 'box', size="10 10 0.5")
-ET.SubElement(ground_collision, 'drake:rigid_hydroelastic')
+ET.SubElement(ground_collision, 'drake:compliant_hydroelastic')
 ET.SubElement(ground_collision, 'drake:mu_dynamic', value=str(params['dynamics']['ground_friction']))
 ET.SubElement(ground_collision, 'drake:mu_static', value=str(params['dynamics']['ground_friction']))
 ET.SubElement(ground_collision, 'drake:mesh_resolution_hint', value=str(params['dynamics']['mesh_resolution_hint']))
-ET.SubElement(ground_collision, 'drake:hydroelastic_modulus', value=str(params['dynamics']['hydroelastic_modulus']))
+ET.SubElement(ground_collision, 'drake:hydroelastic_modulus', value=str(params['dynamics']['ground_hydroelastic_modulus']))
 add_fixed_joint(robot, 'fixed_ground', parent='world', child='ground', pos="0 0 0")
 
 # export urdf

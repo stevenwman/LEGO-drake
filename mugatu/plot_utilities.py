@@ -45,8 +45,11 @@ def plot_angles(time_array,
     #plt.show()
     plt.close()
     # get roll amplitude
-    avg_roll_amp, max_stable_roll_amp = get_amplitude(rolls_degrees, "roll", stabilization_period = stabilization_period)
-    
+    if stabilization_period >= duration:
+        avg_roll_amp, max_stable_roll_amp = get_amplitude(rolls_degrees, "roll", stabilization_period = stabilization_period)
+    else:
+        avg_roll_amp = 0
+        max_stable_roll_amp = 0
     print(f"Max roll achieved: {np.max(np.abs(rolls_degrees))} degrees")
 
     plt.figure()
@@ -58,7 +61,12 @@ def plot_angles(time_array,
     #plt.show()
     plt.close()
     # get pitch amplitude
-    avg_pitch_amp, max_stable_pitch_amp = get_amplitude(pitches_degrees, "pitch", stabilization_period = stabilization_period)
+    if duration >= stabilization_period:
+        avg_pitch_amp, max_stable_pitch_amp = get_amplitude(pitches_degrees, "pitch", stabilization_period = stabilization_period)
+    else:
+        avg_pitch_amp = 0
+        max_stable_pitch_amp = 0
+        
     print(f"Max pitch achieved: {np.max(np.abs(pitches_degrees))} degrees")
 
     plt.figure()
@@ -1180,17 +1188,18 @@ def plot_stability_analysis(time_array,
     plt.close()
 
     # plot x vs y
-    plt.figure()
-    plt.plot(x[:stabilization_period],y[:stabilization_period], label="Gait Stabilization Period", color='g')
-    plt.plot(x[stabilization_period:],y[stabilization_period:], label="Stable Gait", color='r')
-    plt.title("X Position vs Y Position")
-    plt.xlabel("X [m]") 
-    plt.ylabel("Y [m]")
-    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False)
-    plt.tight_layout()
-    plt.savefig(f"{folder_path}/stability_x_v_y.png") 
-    #plt.show()
-    plt.close()
+    if duration >= stabilization_period:
+        plt.figure()
+        plt.plot(x[:stabilization_period],y[:stabilization_period], label="Gait Stabilization Period", color='g')
+        plt.plot(x[stabilization_period:],y[stabilization_period:], label="Stable Gait", color='r')
+        plt.title("X Position vs Y Position")
+        plt.xlabel("X [m]") 
+        plt.ylabel("Y [m]")
+        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False)
+        plt.tight_layout()
+        plt.savefig(f"{folder_path}/stability_x_v_y.png") 
+        #plt.show()
+        plt.close()
 
     if duration >= end_time:
         # plot limit cycle for one cycle
@@ -1327,16 +1336,17 @@ def plot_stability_analysis(time_array,
         plt.close()
 
         # plot x vs y for one cycle
-        plt.figure()
-        plt.plot(x[start_time:end_time],y[start_time:end_time], label="Stable Gait", color='r')
-        plt.title("X Position vs Y Position for One Cycle")
-        plt.xlabel("X [m]") 
-        plt.ylabel("Y [m]")
-        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False)
-        plt.tight_layout()
-        plt.savefig(f"{folder_path}/stability_x_v_y_onecycle.png") 
-        #plt.show()
-        plt.close()
+        if duration >= end_time:
+            plt.figure()
+            plt.plot(x[start_time:end_time],y[start_time:end_time], label="Stable Gait", color='r')
+            plt.title("X Position vs Y Position for One Cycle")
+            plt.xlabel("X [m]") 
+            plt.ylabel("Y [m]")
+            plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False)
+            plt.tight_layout()
+            plt.savefig(f"{folder_path}/stability_x_v_y_onecycle.png") 
+            #plt.show()
+            plt.close()
     else:
         pass
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------

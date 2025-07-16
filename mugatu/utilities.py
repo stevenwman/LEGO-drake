@@ -72,7 +72,7 @@ from pydrake.all import (
 
 
 def get_amplitude(array, array_name, stabilization_period):
-    new_array = array[10000:]
+    new_array = array[stabilization_period:]
     peak, _ = find_peaks(new_array)
     inverted_array= -new_array
     valley, _ = find_peaks(inverted_array)

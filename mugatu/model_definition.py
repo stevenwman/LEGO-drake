@@ -225,8 +225,10 @@ class Controller(LeafSystem):
         # real frequency is calculted by f = (1/2pi) * (g/l)^(1/2) where l is *debatable, likely distance from ground to body COM height
         # based on 1.4Hz, Mugatu's COM should be 12.67 cm below the hip
         # based on the COM height reported in the paper, Mugatu's walking frequency should be 1.93 (assuming l is 6.6cm)
-        self.frequency = 1.93
+        self.frequency = 1.5
         self.frequency = self.frequency/np.sqrt(self.scale)
+
+        # self.frequency = np.sqrt(9.81 / (0.097)) # 0.1267 is the height of Mugatu's COM in meters
         self.wait_time = 1 / (2 * self.frequency)  
         self.counter = 0
         self.amplitude = 0.5
@@ -307,7 +309,7 @@ class Controller(LeafSystem):
         return difference_state
     
     @staticmethod
-    def ComputeControl(self, current_state, desired_state, gain_matrix,feedforward=None):
+    def ComputeControl(self, current_state, desired_state, gain_matrix, feedforward=None):
         error = desired_state[7] - current_state[7]
         self.integral_error += (error * self.control_period)
         self.derivative_error = (self.current_state[7] - self.prev_state[7]) / self.control_period
@@ -355,11 +357,18 @@ class Controller(LeafSystem):
            pass
     
         # compute control
-        self.control_signal[:] = np.clip(self.ComputeControl(self,
+        # self.control_signal[:] = np.clip(self.ComputeControl(self,
+        #     current_state=self.current_state,
+        #     desired_state=self.target_state,
+        #     gain_matrix=self.gain_matrix
+        #     ), -20, 20)
+        
+        self.control_signal[:] = self.ComputeControl(self,
             current_state=self.current_state,
             desired_state=self.target_state,
             gain_matrix=self.gain_matrix
-            ), -20, 20)
+            )
+
 
     def SetOutput(self, context, output):
         output.SetFromVector(self.control_signal)

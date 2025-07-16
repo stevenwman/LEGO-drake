@@ -6,14 +6,14 @@ import os
 
 # --- Configuration ---
 # 1. Path to your data file
-CSV_FILE_PATH = 'run_sim_save_data/data_for_2025-07-15_18-21-19/all_data_2025-07-15_18-21-19.csv'
+CSV_FILE_PATH = 'run_sim_save_data/data_for_2025-07-16_16-52-39/all_data_2025-07-16_16-52-39.csv'
 
 # 2. Name of the column for the x-axis (e.g., 'time').
 #    Set to None to use the row number (index).
 TIME_COLUMN = 'time'
 
 # 3. How many stacked plot windows you want.
-NUM_PLOT_WINDOWS = 3
+NUM_PLOT_WINDOWS = 5
 # --- End Configuration ---
 
 # Load data

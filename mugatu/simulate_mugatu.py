@@ -95,9 +95,12 @@ def run_simulation():
 
         # Setup controller
         controller = builder.AddSystem(Controller(scale = scale, 
-                                                ground_friction = ground_friction, 
-                                                feet_friction = feet_friction, 
-                                                control_period=controller_period, calib=calib))
+                                                  hip_kp=1,
+                                                  hip_kd=0,
+                                                  ground_friction = ground_friction, 
+                                                  feet_friction = feet_friction, 
+                                                  control_period=controller_period, 
+                                                  calib=calib))
         builder.Connect(plant.get_state_output_port(),controller.GetInputPort("state"))
         builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
         
@@ -204,6 +207,7 @@ def run_simulation():
             controller_output = controller_output_port.Eval(controller_context)
 
             print(f"Simulation time: {timer:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
+            print(""*200,end='\r', flush=True)
 
             simulator.AdvanceTo(simulation_time_step*(idx+1))
 
@@ -427,21 +431,21 @@ def run_simulation():
                     com_per_link)
             print("_"*120)
             
-            # print("Plotting RPY data....")
-            # rolls, pitches, yaws, rolls_degrees, pitches_degrees, yaws_degrees, pitch_rate, roll_rate, yaw_rate, omega_x, omega_y, omega_z, avg_roll_amp, avg_pitch_amp, avg_yaw_amp = plot_angles(time_array,
-            #                                                                 plots_folder_path,
-            #                                                                 qw, 
-            #                                                                 qx, 
-            #                                                                 qy, 
-            #                                                                 qz, 
-            #                                                                 omega_x_rad, 
-            #                                                                 omega_y_rad, 
-            #                                                                 omega_z_rad,
-            #                                                                 start_idx,
-            #                                                                 end_idx,
-            #                                                                 duration, 
-            #                                                                 stabilization_period)
-            # print("_"*120)
+            print("Plotting RPY data....")
+            rolls, pitches, yaws, rolls_degrees, pitches_degrees, yaws_degrees, pitch_rate, roll_rate, yaw_rate, omega_x, omega_y, omega_z, avg_roll_amp, avg_pitch_amp, avg_yaw_amp = plot_angles(time_array,
+                                                                            plots_folder_path,
+                                                                            qw, 
+                                                                            qx, 
+                                                                            qy, 
+                                                                            qz, 
+                                                                            omega_x_rad, 
+                                                                            omega_y_rad, 
+                                                                            omega_z_rad,
+                                                                            start_idx,
+                                                                            end_idx,
+                                                                            duration * (1/T), 
+                                                                            stabilization_period)
+            print("_"*120)
 
             print("Plotting position and velocity data...")
             plot_position_and_velocity(time_array,
@@ -477,27 +481,27 @@ def run_simulation():
                                     stabilization_period = stabilization_period)
             print("_"*120)
 
-            # print("Plotting stability data...")
-            # plot_stability_analysis(time_array,
-            #                 plots_folder_path,
-            #                 start_idx,
-            #                 end_idx,
-            #                 duration,
-            #                 stabilization_period,
-            #                 pitches,
-            #                 pitch_rate,
-            #                 rolls,
-            #                 roll_rate,
-            #                 yaws,
-            #                 yaw_rate,
-            #                 com_x,
-            #                 com_y,
-            #                 com_z,
-            #                 com_vx,
-            #                 com_vy,
-            #                 com_vz
-            #                 )
-            # print("_"*120)
+            print("Plotting stability data...")
+            plot_stability_analysis(time_array,
+                            plots_folder_path,
+                            start_idx,
+                            end_idx,
+                            duration,
+                            stabilization_period,
+                            pitches,
+                            pitch_rate,
+                            rolls,
+                            roll_rate,
+                            yaws,
+                            yaw_rate,
+                            com_x,
+                            com_y,
+                            com_z,
+                            com_vx,
+                            com_vy,
+                            com_vz
+                            )
+            print("_"*120)
 
             # save_data
             data = {
