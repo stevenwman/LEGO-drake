@@ -43,7 +43,7 @@ def simulate(
     )
     # Visualisation
     meshcat.Delete()
-    MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
+    visualizer = MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
     ContactVisualizer.AddToBuilder(
         # builder, plant, meshcat, ContactVisualizerParams(radius=0.002 * cfg.scale)
         builder, plant, meshcat, ContactVisualizerParams(radius=0.002)
@@ -77,6 +77,21 @@ def simulate(
     left_contact_points = np.zeros((N_simulation_steps, 3))
     right_contact_points = np.zeros((N_simulation_steps, 3))
     # Save controller frequency and wait time if applicable
+
+    # body_com_history = []
+    # def publish_all_coms():
+    #     # Full-body COM in red
+    #     body_com = plant.CalcCenterOfMassPositionInWorld(plant_context, [instance])
+    #     meshcat.SetObject("COMs/robot_com", Sphere(0.01), rgba=Rgba(1, 0, 0, 1))
+    #     meshcat.SetTransform("COMs/robot_com", RigidTransform(body_com))
+
+    #     # Full-body COM trail in red
+    #     trail_body = np.array(body_com_history[::2])
+    #     if trail_body.ndim == 2 and trail_body.shape[0] > 0:
+    #         trail_body = trail_body.T
+    #         cloud_body = PointCloud(trail_body.shape[1])
+    #         cloud_body.mutable_xyzs()[:3, :] = trail_body
+    #         meshcat.SetObject("COMs/robot_com_trail", cloud_body, rgba=Rgba(1, 0, 0, 0.5))
     
     if not calib:
         controller_context = diagram.GetSubsystemContext(controller, context)
@@ -84,6 +99,8 @@ def simulate(
 
     frequency = cfg.frequency
     wait_time = cfg.wait_time
+
+    visualizer.StartRecording(False)
 
     # Simulation loop
     for idx in range(N_simulation_steps):
@@ -96,6 +113,9 @@ def simulate(
         else:
             controller_output = controller_output_port.Eval(controller_context)
             print(f"Simulation time: {curr_time:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
+            # # Update MeshCat visualization with all COMs
+            # if cfg.visualize_coms and idx % 10 == 0:
+            #     publish_all_coms()
 
         # Advance simulator
         simulator.AdvanceTo(simulation_time_step * (idx + 1))
@@ -130,7 +150,8 @@ def simulate(
             left_contact_points[idx] = point_dict[t_key]["left_foot_point"]
             right_contact_points[idx] = point_dict[t_key]["right_foot_point"]
     # Construct time array for caller
-    
+    visualizer.PublishRecording()
+
     return (
         states,
         hip_real_torque,
