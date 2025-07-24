@@ -10,7 +10,7 @@ print(sys.version)
 
 from utilities import *
 from plot_utilities import *
-from animate_utilities import *
+# from animate_utilities import *
 from model_definition import *
 from meshcat_setup import start_meshcat
 
