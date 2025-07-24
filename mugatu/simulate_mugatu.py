@@ -93,15 +93,16 @@ def run_simulation():
         # print("start state:", start_state)
 
         # Setup controller
-        controller = builder.AddSystem(Controller(scale = scale, 
-                                                  hip_kp=2,
-                                                  hip_kd=0,
-                                                  ground_friction = ground_friction, 
-                                                  feet_friction = feet_friction, 
-                                                  control_period=controller_period, 
-                                                  calib=calib))
-        builder.Connect(plant.get_state_output_port(),controller.GetInputPort("state"))
-        builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
+        if not calib:
+            controller = builder.AddSystem(Controller(scale = scale, 
+                                                    hip_kp=2,
+                                                    hip_kd=0,
+                                                    ground_friction = ground_friction, 
+                                                    feet_friction = feet_friction, 
+                                                    control_period=controller_period, 
+                                                    calib=calib))
+            builder.Connect(plant.get_state_output_port(),controller.GetInputPort("state"))
+            builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
         
         # Setup contact results:
         collision_pairs = [
@@ -133,7 +134,7 @@ def run_simulation():
         initial_rotation = RotationMatrix.MakeXRotation(-np.pi / 2)
         rotation = RigidTransform(initial_rotation)
         base_body = plant.GetBodyByName("left_leg") 
-        plant.SetFreeBodyPose(plant_context, base_body, rotation)
+        # plant.SetFreeBodyPose(plant_context, base_body, rotation)
 
         # set initial robot pose
         plant.SetPositionsAndVelocities(plant_context, start_state)
@@ -157,10 +158,14 @@ def run_simulation():
         left_contact_points = []
         right_contact_forces = []
         right_contact_points = []
-
-        # Save square wave frequency data
-        frequency = controller.frequency
-        wait_time = controller.wait_time
+        
+        if not calib:
+            # Save square wave frequency data
+            frequency = controller.frequency
+            wait_time = controller.wait_time
+        else:
+            frequency = 0.0
+            wait_time = 0.0
 
         # Initialize and save COM data
         com_x_positions = []
@@ -196,23 +201,28 @@ def run_simulation():
                 cloud_body = PointCloud(trail_body.shape[1])
                 cloud_body.mutable_xyzs()[:3, :] = trail_body
                 meshcat.SetObject("COMs/robot_com_trail", cloud_body, rgba=Rgba(1, 0, 0, 0.5))
-
-        controller_context = diagram.GetSubsystemContext(controller, context)
-        controller_output_port = controller.get_output_port(0) # Get the output port of the controller
+        
+        if not calib:
+            controller_context = diagram.GetSubsystemContext(controller, context)
+            controller_output_port = controller.get_output_port(0) # Get the output port of the controller
 
         # Run simulation for timesteps
         for idx in range(N_simulation_steps):
             timer = context.get_time()
-            controller_output = controller_output_port.Eval(controller_context)
 
-            print(f"Simulation time: {timer:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
+            if not calib:
+                controller_output = controller_output_port.Eval(controller_context)
+                print(f"Simulation time: {timer:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
+            else:                
+                print(f"Simulation time: {timer:.2f}s, Step: {idx+1}/{N_simulation_steps}", end='\r', flush=True)
             print(""*200,end='\r', flush=True)
 
             simulator.AdvanceTo(simulation_time_step*(idx+1))
 
             # Save state data
             simulated_states.append(plant.GetPositionsAndVelocities(plant_context))
-            hip_real_torque.append(controller.control_signal.copy())
+            if not calib:
+                hip_real_torque.append(controller.control_signal.copy())
 
             # Get robot COM
             com_robot = plant.CalcCenterOfMassPositionInWorld(plant_context, [instance])
@@ -266,8 +276,9 @@ def run_simulation():
     def run_sim( scale, ground_friction, feet_friction, meshcat = meshcat):
         # run sim
         T = 0.001 #timestep
+        T_calib = 0.01
         sim_time = int(duration * (1/T)) #time in seconds
-        t_calib = int(3 * (1/T))
+        t_calib = int(3 * (1/T_calib))
         start_state = get_home_state(scale)
 
         for i in range(2):
@@ -292,7 +303,7 @@ def run_simulation():
                         ground_friction = ground_friction,
                         feet_friction = feet_friction,
                         N_simulation_steps = t_calib,
-                        simulation_time_step = T,
+                        simulation_time_step = T_calib,
                         controller_period = 0.0005,
                         meshcat = meshcat, 
                         start_state=start_state,

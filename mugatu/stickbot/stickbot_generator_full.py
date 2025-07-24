@@ -24,9 +24,10 @@ params = {
     # hand cube size
     's_hand' : 0.02,
     # hip offset
-    'hip_offset' : -0.014,
+    # 'hip_offset' : -0.014,
+    'hip_offset' : -0.01,
     # masses 
-    'leg_mass' : 0.1, 'feet_mass' : 0.1, 'hand_mass' : 0.1,
+    'leg_mass' : 0.1, 'feet_mass' : 0.13, 'hand_mass' : 0.15,
     # feet geom params
     'feet_vars_dict' : {
         # Ellipsoid diameters
@@ -53,8 +54,13 @@ ft_prm['file_id'] = params['file_id']
 left_color = "1 0 0 0.5"
 right_color = "0 0 1 0.5"
 mass_color = "0 1 0 0.5"
-s = params['s']
-s_hand = params['s_hand']
+
+viz_scaling = params['l_leg'] / 0.153
+
+# s = params['s']
+s = params['s'] * viz_scaling
+# s_hand = params['s_hand']
+s_hand = params['s_hand'] * viz_scaling
 
 # generate feet geometries
 generate_feet_geom(ft_prm, script_dir)
@@ -110,29 +116,37 @@ for side, link in side_dict.items():
         y_val = comp_params['xyz'][1] if side == 'left' else -comp_params['xyz'][1]
         color = left_color if side == 'left' else right_color
         color = mass_color if 'mass' in comp_name else color
-        # Add the visual elements (box for links)
-        add_box_visual(link, f"{side}_{comp_name}",
-                         xyz=f"{comp_params['xyz'][0]} {y_val} {comp_params['xyz'][2]}",
-                         size=f"{comp_params['size'][0]} {comp_params['size'][1]} {comp_params['size'][2]}",
-                         color=color)
         # Add links for the mass elements (legs and hands)
+
+        xyz = np.array([comp_params['xyz'][0], y_val, comp_params['xyz'][2]])
+
         if 'mass' in comp_name:
             link_name = f"{side}_{comp_name}"
             mass_link_name = f"{link_name}_link"
             mass_link = ET.SubElement(robot, 'link', name=mass_link_name)
-            mass_links_parents[mass_link_name] = link.get('name')
             inertial = ET.SubElement(mass_link, 'inertial', name=f"{link_name}_inertial")
-            xyz = np.array([comp_params['xyz'][0], y_val, comp_params['xyz'][2]])
-            ET.SubElement(inertial, 'origin', xyz=f"{xyz[0]} {xyz[1]} {xyz[2]}", rpy="0 0 0")
-            # ET.SubElement(inertial, 'origin', xyz=f"{comp_params['xyz'][0]} {y_val} {comp_params['xyz'][2]}", rpy="0 0 0")
+            mass_links_parents[mass_link_name] = {
+                'parent' : link.get('name'),
+                'xyz'  : xyz,
+                }
+            ET.SubElement(inertial, 'origin', xyz=f"0 0 0", rpy="0 0 0")
             ET.SubElement(inertial, 'mass', value=f"{comp_params['mass']}")
-            J = comp_params['mass'] * ((xyz @ xyz) * np.eye(3) - np.outer(xyz, xyz))  # Inertia tensor
+            J = 1e-6 * np.eye(3)  # Placeholder inertia tensor
             J = 0 * np.eye(3)  # Placeholder inertia tensor
-            # J = 1e-6 * np.eye(3)  # Placeholder inertia tensor
             ET.SubElement(inertial, 'inertia', ixx=f"{J[0,0]}", ixy=f"{J[0,1]}", ixz=f"{J[0,2]}", 
                                                                 iyy=f"{J[1,1]}", iyz=f"{J[1,2]}", 
                                                                                 izz=f"{J[2,2]}")
-            # ET.SubElement(inertial, 'inertia', ixx="1e-3", ixy="0.0", ixz="0.0", iyy="1e-3", iyz="0.0", izz="1e-3")
+            xyz = np.array([0,0,0])
+            add_box_visual(mass_link, f"{side}_{comp_name}",
+                            xyz=f"{xyz[0]} {xyz[1]} {xyz[2]}",
+                            size=f"{comp_params['size'][0]} {comp_params['size'][1]} {comp_params['size'][2]}",
+                            color=color)
+        else:
+        # Add the visual elements (box for links)
+            add_box_visual(link, f"{side}_{comp_name}",
+                            xyz=f"{xyz[0]} {xyz[1]} {xyz[2]}",
+                            size=f"{comp_params['size'][0]} {comp_params['size'][1]} {comp_params['size'][2]}",
+                            color=color)
 
     # Add the foot mesh for both legs
     y_val = params['gap_ft']/2 if side == 'left' else -params['gap_ft']/2
@@ -142,14 +156,19 @@ for side, link in side_dict.items():
     link_name = f"{side}_foot"
     mass_link_name = f"{link_name}"
     mass_link = ET.SubElement(robot, 'link', name=mass_link_name)
-    mass_links_parents[mass_link_name] = link.get('name')    
+    # mass_links_parents[mass_link_name] = link.get('name')   
     inertial = ET.SubElement(mass_link, 'inertial', name=f"{link_name}_inertial")
     xyz = np.array([-params['hip_offset'], y_val, -params['l_leg']])
+    mass_links_parents[mass_link_name] = {
+                'parent' : link.get('name'),
+                'xyz'  : xyz,
+                } 
     J = params['feet_mass'] * ((xyz @ xyz) * np.eye(3) - np.outer(xyz, xyz))  # Inertia tensor
     J = 1e-6 * np.eye(3)  # Placeholder inertia tensor
     J = 0 * np.eye(3)  # Placeholder inertia tensor
-    # ET.SubElement(inertial, 'origin', xyz=f"{-params['hip_offset']} {y_val} {-params['l_leg']}", rpy="0 0 0")
-    ET.SubElement(inertial, 'origin', xyz=f"{xyz[0]} {xyz[1]} {xyz[2]}", rpy="0 0 0")
+    mass_y_offset  = params['feet_vars_dict']['box_y']/2
+    mass_y_offset = mass_y_offset if side == 'left' else -mass_y_offset
+    ET.SubElement(inertial, 'origin', xyz=f"0 {mass_y_offset} 0", rpy="0 0 0")
     ET.SubElement(inertial, 'mass', value=f"{params['feet_mass']}")
     ET.SubElement(inertial, 'inertia', ixx=f"{J[0,0]}", ixy=f"{J[0,1]}", ixz=f"{J[0,2]}", 
                                                         iyy=f"{J[1,1]}", iyz=f"{J[1,2]}", 
@@ -157,24 +176,23 @@ for side, link in side_dict.items():
 
     for mesh_type in ['visual', 'collision']:
         mesh_tag = add_mesh(mass_link, mesh_type, f'{side}_leg_foot_{mesh_type}',
-                            xyz=f"{-params['hip_offset']} {y_val} {-params['l_leg']}", 
-                            filename=f"{urdf_prefix}{params['file_id']}/{side}_foot_geom.obj",
+                            xyz=f"0 0 0", filename=f"{urdf_prefix}{params['file_id']}/{side}_foot_geom.obj",
                             color=color)
-        # mesh_tag = add_mesh(mass_link, mesh_type, f'{side}_leg_foot_{mesh_type}',
-        #                     xyz=f"0 0 0", filename=f"{urdf_prefix}{params['file_id']}/{side}_foot_geom.obj",
-        #                     color=color)
         if mesh_type == 'collision':
             drake_tag = ET.SubElement(mesh_tag, 'drake:proximity_properties')
             ET.SubElement(drake_tag, 'drake:rigid_hydroelastic')
             ET.SubElement(drake_tag, 'drake:mu_dynamic', value=str(params['dynamics']['feet_friction']))
             ET.SubElement(drake_tag, 'drake:mu_static', value=str(params['dynamics']['feet_friction']))
             ET.SubElement(drake_tag, 'drake:mesh_resolution_hint', value=str(params['dynamics']['mesh_resolution_hint']))
-            ET.SubElement(drake_tag, 'drake:hydroelastic_modulus', value=str(params['dynamics']['hydroelastic_modulus']))
+            # ET.SubElement(drake_tag, 'drake:hydroelastic_modulus', value=str(params['dynamics']['hydroelastic_modulus']))
 
-# add hip joint
+# Add hip and fixed joint
 add_rev_joint(robot, 'hip', parent='left_leg', child='right_leg', pos=f"{0} {0} {0}")
-for link, parent in mass_links_parents.items():
-    add_fixed_joint(robot, f"fixed_{link}", parent=parent, child=link, pos=f"{0} {0} {0}")
+for link, dic in mass_links_parents.items():
+    xyz = dic['xyz']
+    add_fixed_joint(robot, f"fixed_{link}", parent=dic['parent'], child=link, 
+                    pos=f"{xyz[0]} {xyz[1]} {xyz[2]}",
+                    )
 
 # add the transmisison tags
 transm = ET.SubElement(robot, 'transmission', name='hip_joint_transmission')
@@ -203,13 +221,13 @@ add_fixed_joint(robot, 'fixed_ground', parent='world', child='ground', pos="0 0 
 
 # export urdf
 tree = ET.ElementTree(robot)
-save_file(tree, robot, 'stick_bot_generated', script_dir)
+save_file(tree, robot, 'stick_bot_generated2', script_dir)
 
-# make modifications compatible with Mujoco
-ET.SubElement(ET.SubElement(robot, 'mujoco'), 'compiler', strippath="false")
-tree_mjc = ET.ElementTree(robot)
-for elem in tree_mjc.iter():
-    if elem.tag == 'mesh':
-        # Change the filename to absolute path
-        elem.set('filename', f"{script_dir}/{params['file_id']}/{elem.get('filename').split('/')[-1]}")
-save_file(tree_mjc, robot, 'stick_bot_generated_mjc', script_dir)
+# # make modifications compatible with Mujoco
+# ET.SubElement(ET.SubElement(robot, 'mujoco'), 'compiler', strippath="false")
+# tree_mjc = ET.ElementTree(robot)
+# for elem in tree_mjc.iter():
+#     if elem.tag == 'mesh':
+#         # Change the filename to absolute path
+#         elem.set('filename', f"{script_dir}/{params['file_id']}/{elem.get('filename').split('/')[-1]}")
+# save_file(tree_mjc, robot, 'stick_bot_generated_mjc', script_dir)
