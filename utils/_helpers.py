@@ -198,33 +198,51 @@ class ContactResultsToArray(LeafSystem):
         for geometry_id in inspector.GetAllGeometryIds():
             body = plant.GetBodyFromFrameId(inspector.GetFrameId(geometry_id))
             if hasattr(body,'name'):
+                # Scoped name adds the name of the object and the body
                 scoped_name = body.scoped_name()
                 self.geometryid2name[geometry_id.get_value()]=scoped_name.to_string()
             else:
                 self.geometryid2name[geometry_id.get_value()]='NONAME'
-        
-        self.output_vector_size = 12 
-        # self.combined_output is no longer needed as a member variable.
-        # The output calculation will be done directly when the output port is evaluated.
+        self.collision_pair_map = {}
+        start_idx = 0
+        for collision_pair in collision_pairs:
+            name1 = collision_pair[0].to_string()
+            name2 = collision_pair[1].to_string()
+            if name1 not in self.collision_pair_map:
+                self.collision_pair_map[name1] = {}
+            if name2 not in self.collision_pair_map:
+                self.collision_pair_map[name2] = {}
+            idx_range = [start_idx,start_idx + 3]
+            # collect both directions for efficiency later.
+            self.collision_pair_map[name1][name2] = idx_range
+            self.collision_pair_map[name2][name1] = idx_range
+            start_idx += 3
+        self.num_forces = start_idx
+        self.force_output = np.zeros(self.num_forces)
+        self.contact_points = np.zeros(self.num_forces)  # List to store contact points
+
+        self.force_output_dict: dict[str, np.array] = dict()
+        self.contact_points_dict: dict[str, np.array] = dict()
 
         self.DeclareAbstractInputPort(
             "contact_results", AbstractValue.Make(ContactResults())
         )
-        # Declare a single output port for combined forces and points.
-        # The `Publish` method will now act as the calculator for this output port.
         self.DeclareVectorOutputPort(
-            "combined_contact_data", self.output_vector_size, self.CalcCombinedContactData
+            "contact_results_array", self.num_forces, self.Publish
         )        
-        # REMOVE THE PERIODIC DISCRETE UPDATE EVENT
-        # self.DeclarePeriodicDiscreteUpdateEvent(0.001, 0, self.Publish)
+        # Add periodic update event
+        self.DeclarePeriodicDiscreteUpdateEvent(0.001, 0, self.Publish)
 
-    # Change the method name from Publish to CalcCombinedContactData
-    # This method is now specifically for calculating the output port's value.
-    def CalcCombinedContactData(self, context, output_vector):
+    def GetCollisionPairMap(self):
+        return self.collision_pair_map
+    
+    def Publish(self, context, output):
+        formatter = {"float": lambda x: "{:5.2f}".format(x)}
         results = self.get_input_port().Eval(context)
 
-        # Initialize the temporary combined_output array for this calculation
-        combined_output_temp = np.zeros(self.output_vector_size)
+        # Reset forces and contact points for this loop
+        self.force_output[:] = 0.0
+        self.contact_points[:] = 0.0
 
         # Arrays for left and right foot forces and contact points
         left_foot_force = np.zeros(3)
@@ -246,25 +264,27 @@ class ContactResultsToArray(LeafSystem):
             contact_point = cs.centroid()
 
             # Check if the contact is with the left foot
-            if (ScopedName("walker", "left_foot").to_string() in name1 or
-                ScopedName("walker", "left_foot").to_string() in name2):
+            if (ScopedName("walker", "left_leg").to_string() in name1 or 
+                ScopedName("walker", "left_leg").to_string() in name2):
                 left_foot_force += fxfyfz
                 left_foot_point = contact_point  # Store contact point for the left foot
 
             # Check if the contact is with the right foot
-            elif (ScopedName("walker", "right_foot").to_string() in name1 or
-                ScopedName("walker", "right_foot").to_string() in name2):
+            elif (ScopedName("walker", "right_leg").to_string() in name1 or 
+                ScopedName("walker", "right_leg").to_string() in name2):
                 right_foot_force += fxfyfz
                 right_foot_point = contact_point  # Store contact point for the right foot
-        
-        # Populate the combined_output_temp vector
-        combined_output_temp[0:3] = left_foot_force
-        combined_output_temp[3:6] = right_foot_force
-        combined_output_temp[6:9] = left_foot_point
-        combined_output_temp[9:12] = right_foot_point
 
-        # Set the output port value using output_vector
-        output_vector.SetFromVector(combined_output_temp)
+        # Store both the forces and contact points for the current timestep
+        self.force_output_dict[str(context.get_time())] = {
+            'left_foot_force': left_foot_force.copy(),
+            'right_foot_force': right_foot_force.copy()
+        }
+        self.contact_points_dict[str(context.get_time())] = {
+            'left_foot_point': left_foot_point.copy(),
+            'right_foot_point': right_foot_point.copy()
+        }
 
 
-
+    def get_forces_and_points(self):
+        return self.force_output_dict, self.contact_points_dict

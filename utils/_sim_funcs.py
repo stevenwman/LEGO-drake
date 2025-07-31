@@ -1,5 +1,3 @@
-# In files.zip/utils/sim_funcs.py
-
 from simulate import SimConfig
 from utils.helpers import *
 
@@ -31,18 +29,18 @@ def simulate(
         builder.Connect(plant.get_state_output_port(), controller.GetInputPort("state"))
         builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
         
-    # Contact results collector
-    collision_pairs = [
-        [ScopedName("walker", "left_foot"), ScopedName("walker", "ground")],
-        [ScopedName("walker", "right_foot"), ScopedName("walker", "ground")],
-    ]
-    contact_results_system = builder.AddSystem(
-        ContactResultsToArray(plant, scene_graph, collision_pairs)
-    )
-    builder.Connect(
-        plant.get_contact_results_output_port(),
-        contact_results_system.GetInputPort("contact_results"),
-    )
+    # # Contact results collector
+    # collision_pairs = [
+    #     [ScopedName("walker", "left_foot"), ScopedName("walker", "ground")],
+    #     [ScopedName("walker", "right_foot"), ScopedName("walker", "ground")],
+    # ]
+    # contact_results_system = builder.AddSystem(
+    #     ContactResultsToArray(plant, scene_graph, collision_pairs)
+    # )
+    # builder.Connect(
+    #     plant.get_contact_results_output_port(),
+    #     contact_results_system.GetInputPort("contact_results"),
+    # )
 
     # Visualisation
     meshcat.Delete()
@@ -58,17 +56,10 @@ def simulate(
     if not calib:
         control_logger = LogVectorOutput(controller.get_output_port(), builder)
         control_logger.set_name("control_logger")
-    
-    # # NEW: Log the combined output of ContactResultsToArray directly
-    # contact_logger = LogVectorOutput(contact_results_system.get_output_port("combined_contact_data"), builder)
-    # contact_logger.set_name("contact_logger")
-
-    contact_logger = LogVectorOutput(contact_results_system.get_output_port(0), builder) # Use index 0 for the first output port
-    contact_logger.set_name("contact_logger")
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
-    simulator.set_target_realtime_rate(0.0) # Ensure this is 0.0 for max speed
+    # simulator.set_target_realtime_rate(1.0)
     context = simulator.get_mutable_context()
     plant_context = plant.GetMyContextFromRoot(context)
     # Set initial positions and velocities
@@ -95,26 +86,40 @@ def simulate(
     states = states_log.data().transpose() # Transpose to get (N_steps, N_states)
     time_array = states_log.sample_times()
     
+    # *** CRITICAL FIX: Determine actual number of simulation steps from logged data ***
     actual_N_simulation_steps = len(time_array)
 
     hip_real_torque = np.zeros((actual_N_simulation_steps, plant.num_actuators()))
     if not calib:
         control_log = control_logger.FindLog(context)
+        # It's good practice to ensure control_log has compatible data
         if control_log.data().shape[1] == actual_N_simulation_steps:
-            hip_real_torque = control_log.data().transpose()
+            hip_real_torque = control_log.data().transpose() # Transpose to get (N_steps, N_actuators)
         else:
             print("Warning: Control log sample count mismatch with state log. This might indicate different logging rates or issues.")
+            # You might want to resample or interpolate control_log data here if precise alignment is crucial
+            # For now, we'll proceed with the available samples, or use the pre-initialized zero array if sizes don't match for safety
             # If control_log.data() is empty or too short, hip_real_torque remains zeros, which is safer than an error.
-    
-    # NEW: Retrieve combined contact data from the logger and split it
-    contact_log = contact_logger.FindLog(context)
-    combined_contact_data = contact_log.data().transpose() # This will be (N_steps, 12)
-    
-    left_contact_forces = combined_contact_data[:, 0:3]
-    right_contact_forces = combined_contact_data[:, 3:6]
-    left_contact_points = combined_contact_data[:, 6:9]
-    right_contact_points = combined_contact_data[:, 9:12]
 
+    # # Retrieve contact forces and points from ContactResultsToArray
+    # force_dict, point_dict = contact_results_system.get_forces_and_points()
+    force_dict, point_dict = {}, {}
+    
+    # Initialize arrays for contact forces and points with the actual number of steps
+    left_contact_forces = np.zeros((actual_N_simulation_steps, 3))
+    right_contact_forces = np.zeros((actual_N_simulation_steps, 3))
+    left_contact_points = np.zeros((actual_N_simulation_steps, 3))
+    right_contact_points = np.zeros((actual_N_simulation_steps, 3))
+
+    # Populate contact force/point arrays from dictionaries
+    # Loop over the actual number of recorded samples
+    for i, t in enumerate(time_array):
+        t_key = str(t)
+        if t_key in force_dict:
+            left_contact_forces[i] = force_dict[t_key].get('left_foot_force', np.zeros(3))
+            right_contact_forces[i] = force_dict[t_key].get('right_foot_force', np.zeros(3))
+            left_contact_points[i] = point_dict[t_key].get('left_foot_point', np.zeros(3))
+            right_contact_points[i] = point_dict[t_key].get('right_foot_point', np.zeros(3))
 
     # Calculate COM data from logged states
     com_xyz = np.zeros((actual_N_simulation_steps, 3))
@@ -132,6 +137,7 @@ def simulate(
     com_context = com_diagram.CreateDefaultContext()
     com_plant_context = com_plant.GetMyContextFromRoot(com_context)
 
+    # Loop over the actual number of recorded samples for COM calculations
     for idx in range(actual_N_simulation_steps):
         com_plant.SetPositionsAndVelocities(com_plant_context, states[idx])
         com_robot = com_plant.CalcCenterOfMassPositionInWorld(com_plant_context, [com_instance])
@@ -237,6 +243,7 @@ def run_joint_sliders(cfg: SimConfig, meshcat):
     meshcat.Delete()
     MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
     ContactVisualizer.AddToBuilder(
+        # builder, plant, meshcat, ContactVisualizerParams(radius=0.001 * cfg.scale)
         builder, plant, meshcat, ContactVisualizerParams(radius=0.001)
     )
     AddDefaultVisualization(builder, meshcat)
