@@ -161,7 +161,7 @@ class Controller(LeafSystem):
         
         # self.mass_matrix = self.controller_plant.CalcMassMatrix(self.controller_plant_context)
         elapsed_time = context.get_time()
-        act_start_time = 0
+        act_start_time = 1
         adjusted_time = elapsed_time - act_start_time
 
         ang_freq = 2 * np.pi * self.frequency

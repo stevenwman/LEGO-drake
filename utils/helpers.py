@@ -161,7 +161,7 @@ class Controller(LeafSystem):
         
         # self.mass_matrix = self.controller_plant.CalcMassMatrix(self.controller_plant_context)
         elapsed_time = context.get_time()
-        act_start_time = 0
+        act_start_time = 1
         adjusted_time = elapsed_time - act_start_time
 
         ang_freq = 2 * np.pi * self.frequency
@@ -178,15 +178,14 @@ class Controller(LeafSystem):
     def SetOutput(self, context, output):
         output.SetFromVector(self.control_signal)
 
-
 class ContactResultsToArray(LeafSystem):
     def __init__(
             self,
             plant,
             scene_graph,
             collision_pairs = [
-                [ScopedName("walker", "left_leg"), ScopedName("walker", "ground")],
-                [ScopedName("walker", "right_leg"), ScopedName("walker", "ground")],
+                [ScopedName("walker", "left_foot"), ScopedName("walker", "ground")],
+                [ScopedName("walker", "right_foot"), ScopedName("walker", "ground")],
             ]
             ):
 
@@ -203,27 +202,28 @@ class ContactResultsToArray(LeafSystem):
             else:
                 self.geometryid2name[geometry_id.get_value()]='NONAME'
         
+        # Store collision_pairs as a member variable to be used in CalcCombinedContactData
+        self.collision_pairs = collision_pairs 
+
+        # Define the size of the combined output vector:
+        # 3 (left_force) + 3 (right_force) + 3 (left_point) + 3 (right_point) = 12
         self.output_vector_size = 12 
-        # self.combined_output is no longer needed as a member variable.
-        # The output calculation will be done directly when the output port is evaluated.
 
         self.DeclareAbstractInputPort(
             "contact_results", AbstractValue.Make(ContactResults())
         )
         # Declare a single output port for combined forces and points.
-        # The `Publish` method will now act as the calculator for this output port.
+        # This output port will be calculated by the `CalcCombinedContactData` method.
         self.DeclareVectorOutputPort(
             "combined_contact_data", self.output_vector_size, self.CalcCombinedContactData
         )        
-        # REMOVE THE PERIODIC DISCRETE UPDATE EVENT
-        # self.DeclarePeriodicDiscreteUpdateEvent(0.001, 0, self.Publish)
+        # REMOVED: DeclarePeriodicDiscreteUpdateEvent. The output port will be evaluated when its data is requested (e.g., by a logger).
 
-    # Change the method name from Publish to CalcCombinedContactData
-    # This method is now specifically for calculating the output port's value.
+    # Renamed from Publish to CalcCombinedContactData, and it now directly sets the output vector
     def CalcCombinedContactData(self, context, output_vector):
         results = self.get_input_port().Eval(context)
 
-        # Initialize the temporary combined_output array for this calculation
+        # Initialize a temporary array for this calculation
         combined_output_temp = np.zeros(self.output_vector_size)
 
         # Arrays for left and right foot forces and contact points
@@ -232,7 +232,7 @@ class ContactResultsToArray(LeafSystem):
         left_foot_point = np.zeros(3)
         right_foot_point = np.zeros(3)
 
-        # Loop over all hydroelastic contacts
+        # Loop over all hydroelastic contacts detected by Drake
         for i in range(results.num_hydroelastic_contacts()):
             info = results.hydroelastic_contact_info(i)
             cs = info.contact_surface()
@@ -245,26 +245,35 @@ class ContactResultsToArray(LeafSystem):
             fxfyfz = spatialforce.translational()
             contact_point = cs.centroid()
 
-            # Check if the contact is with the left foot
-            if (ScopedName("walker", "left_foot").to_string() in name1 or
-                ScopedName("walker", "left_foot").to_string() in name2):
-                left_foot_force += fxfyfz
-                left_foot_point = contact_point  # Store contact point for the left foot
+            # Now, iterate through the configured collision_pairs to check for a match
+            for pair in self.collision_pairs:
+                pair_name1 = pair[0].to_string()
+                pair_name2 = pair[1].to_string()
 
-            # Check if the contact is with the right foot
-            elif (ScopedName("walker", "right_foot").to_string() in name1 or
-                ScopedName("walker", "right_foot").to_string() in name2):
-                right_foot_force += fxfyfz
-                right_foot_point = contact_point  # Store contact point for the right foot
+                # Check if the current contact matches one of the specified pairs (order insensitive)
+                if (pair_name1 in name1 and pair_name2 in name2) or \
+                   (pair_name1 in name2 and pair_name2 in name1):
+                    
+                    # If it's the left foot's pair
+                    if "left_foot" in pair_name1 or "left_foot" in pair_name2:
+                        left_foot_force += fxfyfz
+                        left_foot_point = contact_point
+                        break 
+                    
+                    # If it's the right foot's pair
+                    elif "right_foot" in pair_name1 or "right_foot" in pair_name2:
+                        right_foot_force += fxfyfz
+                        right_foot_point = contact_point
+                        break 
         
         # Populate the combined_output_temp vector
+        # Order: left_force_xyz (0:3), right_force_xyz (3:6), left_point_xyz (6:9), right_point_xyz (9:12)
         combined_output_temp[0:3] = left_foot_force
         combined_output_temp[3:6] = right_foot_force
         combined_output_temp[6:9] = left_foot_point
         combined_output_temp[9:12] = right_foot_point
 
-        # Set the output port value using output_vector
+        # Set the output port value directly
         output_vector.SetFromVector(combined_output_temp)
-
 
 
