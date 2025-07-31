@@ -14,12 +14,12 @@ def setup_walker_plant(timestep, filename=None):
     parser = Parser(plant)
     # parser.AddModelsFromString(create_walker_urdf(scale = scale, ground_friction = ground_friction, feet_friction = feet_friction),"urdf")
     parser.AddModels(filename)
-    plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
+    # plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
     plant.Finalize()
     instance = plant.GetModelInstanceByName("walker")
     return plant, scene_graph, builder, instance
 
-def setup_walker_controller_plant(timestep, filename=None):
+def setup_walker_controller_plant(timestep=0.001, filename=None):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=timestep)
     parser = Parser(plant)

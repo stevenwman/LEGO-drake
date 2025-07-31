@@ -6,18 +6,14 @@ from utils.helpers import *
 def simulate(
     cfg: SimConfig,
     meshcat: Meshcat,
-    N_simulation_steps: int, # This parameter will now mainly serve as an initial estimate
     simulation_time_step: float,
     start_state = None,
     calib: bool = False,
 ) -> tuple:
     """
     Run a Mugatu simulation.
-
-    This function uses Drake's logging capabilities to collect data
-    without an explicit simulation loop.
     """
-    # Set up the Drake plant, scene graph and controller if needed
+    # Set up the Drake plant and scene graph
     plant, scene_graph, builder, instance = setup_walker_plant(
         timestep=simulation_time_step,
         filename=cfg.urdf_filename,
@@ -25,149 +21,71 @@ def simulate(
     if start_state is None:
         start_state = get_home_state(cfg.start_height)
 
-    controller = None # Initialize controller to None
+    # Add the controller and loggers if not in calibration mode
     if not calib:
         controller = builder.AddSystem(Controller(cfg))
         builder.Connect(plant.get_state_output_port(), controller.GetInputPort("state"))
-        builder.Connect(controller.get_output_port(), plant.get_actuation_input_port())
+        builder.Connect(controller.GetOutputPort("control"), plant.get_actuation_input_port())
         
-    # Contact results collector
-    collision_pairs = [
-        [ScopedName("walker", "left_foot"), ScopedName("walker", "ground")],
-        [ScopedName("walker", "right_foot"), ScopedName("walker", "ground")],
-    ]
-    contact_results_system = builder.AddSystem(
-        ContactResultsToArray(plant, scene_graph, collision_pairs)
-    )
-    builder.Connect(
-        plant.get_contact_results_output_port(),
-        contact_results_system.GetInputPort("contact_results"),
-    )
+        control_logger = LogVectorOutput(controller.GetOutputPort("control"), builder)
+        angle_logger = LogVectorOutput(controller.GetOutputPort("desired_hip_angle"), builder)
 
-    # Visualisation
-    meshcat.Delete()
+    # Add contact results system and logger
+    collision_pairs = [[ScopedName("walker", "left_foot"), ScopedName("walker", "ground")],
+                       [ScopedName("walker", "right_foot"), ScopedName("walker", "ground")]]
+    contact_results_system = builder.AddSystem(ContactResultsToArray(plant, scene_graph, collision_pairs))
+    builder.Connect(plant.get_contact_results_output_port(), contact_results_system.GetInputPort("contact_results"))
+    contact_logger = LogVectorOutput(contact_results_system.get_output_port(0), builder)
+
+    # Add visualizer and state logger
     visualizer = MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
-    ContactVisualizer.AddToBuilder(
-        builder, plant, meshcat, ContactVisualizerParams(radius=0.002)
-    )
-
-    # Add loggers for states and control signals
     state_logger = LogVectorOutput(plant.get_state_output_port(), builder)
-    state_logger.set_name("state_logger")
-
-    if not calib:
-        control_logger = LogVectorOutput(controller.get_output_port(), builder)
-        control_logger.set_name("control_logger")
     
-    # # NEW: Log the combined output of ContactResultsToArray directly
-    # contact_logger = LogVectorOutput(contact_results_system.get_output_port("combined_contact_data"), builder)
-    # contact_logger.set_name("contact_logger")
-
-    contact_logger = LogVectorOutput(contact_results_system.get_output_port(0), builder) # Use index 0 for the first output port
-    contact_logger.set_name("contact_logger")
-
+    # Build and run the simulation
     diagram = builder.Build()
     simulator = Simulator(diagram)
-    simulator.set_target_realtime_rate(0.0) # Ensure this is 0.0 for max speed
     context = simulator.get_mutable_context()
     plant_context = plant.GetMyContextFromRoot(context)
-    # Set initial positions and velocities
     plant.SetPositionsAndVelocities(plant_context, start_state)
     
-    total_mass = plant.CalcTotalMass(plant_context, [instance])
-    body_indices = plant.GetBodyIndices(instance)
-    exclude_names = {"ground", "inclined_plane"}
-    link_names = [
-        plant.get_body(index).name()
-        for index in body_indices
-        if plant.get_body(index).name() not in exclude_names
-    ]
-
+    meshcat.Delete()
     visualizer.StartRecording(False)
-
-    # Advance the simulator to the end time
     simulator.AdvanceTo(cfg.duration)
-
     visualizer.PublishRecording()
 
-    # Retrieve data from loggers
+    # --- Post-Processing ---
+    # Retrieve logged data
     states_log = state_logger.FindLog(context)
-    states = states_log.data().transpose() # Transpose to get (N_steps, N_states)
+    states = states_log.data().transpose()
     time_array = states_log.sample_times()
-    
-    actual_N_simulation_steps = len(time_array)
+    num_steps = len(time_array)
 
-    hip_real_torque = np.zeros((actual_N_simulation_steps, plant.num_actuators()))
+    # Retrieve optional logged data
+    hip_real_torque = np.zeros((num_steps, 1))
+    desired_hip_angle = np.zeros(num_steps)
     if not calib:
-        control_log = control_logger.FindLog(context)
-        if control_log.data().shape[1] == actual_N_simulation_steps:
-            hip_real_torque = control_log.data().transpose()
-        else:
-            print("Warning: Control log sample count mismatch with state log. This might indicate different logging rates or issues.")
-            # If control_log.data() is empty or too short, hip_real_torque remains zeros, which is safer than an error.
+        hip_real_torque = control_logger.FindLog(context).data().transpose()
+        desired_hip_angle = angle_logger.FindLog(context).data().flatten()
+
+    contact_data = contact_logger.FindLog(context).data().transpose()
+    left_contact_forces = contact_data[:, 0:3]
+    right_contact_forces = contact_data[:, 3:6]
+    # And add these lines right after it to extract the points:
+    left_contact_points = contact_data[:, 6:9]
+    right_contact_points = contact_data[:, 9:12]
     
-    # NEW: Retrieve combined contact data from the logger and split it
-    contact_log = contact_logger.FindLog(context)
-    combined_contact_data = contact_log.data().transpose() # This will be (N_steps, 12)
-    
-    left_contact_forces = combined_contact_data[:, 0:3]
-    right_contact_forces = combined_contact_data[:, 3:6]
-    left_contact_points = combined_contact_data[:, 6:9]
-    right_contact_points = combined_contact_data[:, 9:12]
-
-
-    # Calculate COM data from logged states
-    com_xyz = np.zeros((actual_N_simulation_steps, 3))
-    com_vxyz = np.zeros((actual_N_simulation_steps, 3))
-    com_per_link = {name: np.zeros((actual_N_simulation_steps, 3)) for name in link_names}
-
-    # Create a temporary diagram for offline COM calculations
-    com_builder = DiagramBuilder()
-    com_plant, com_scene_graph = AddMultibodyPlantSceneGraph(com_builder, time_step=simulation_time_step)
-    com_parser = Parser(com_plant)
-    com_parser.AddModels(cfg.urdf_filename)
-    com_plant.Finalize()
-    com_instance = com_plant.GetModelInstanceByName("walker")
-    com_diagram = com_builder.Build()
-    com_context = com_diagram.CreateDefaultContext()
-    com_plant_context = com_plant.GetMyContextFromRoot(com_context)
-
-    for idx in range(actual_N_simulation_steps):
-        com_plant.SetPositionsAndVelocities(com_plant_context, states[idx])
-        com_robot = com_plant.CalcCenterOfMassPositionInWorld(com_plant_context, [com_instance])
-        com_xyz[idx] = com_robot
-        com_vel = com_plant.CalcCenterOfMassTranslationalVelocityInWorld(com_plant_context, [com_instance])
-        com_vxyz[idx] = com_vel
+    # Efficiently calculate COM data using the existing simulation plant
+    com_xyz = np.zeros((num_steps, 3))
+    com_vxyz = np.zeros((num_steps, 3))
+    for i in range(num_steps):
+        plant.SetPositionsAndVelocities(plant_context, states[i, :])
+        com_xyz[i] = plant.CalcCenterOfMassPositionInWorld(plant_context, [instance])
+        com_vxyz[i] = plant.CalcCenterOfMassTranslationalVelocityInWorld(plant_context, [instance])
         
-        for name in link_names:
-            body = com_plant.GetBodyByName(name)
-            X_WB = com_plant.EvalBodyPoseInWorld(com_plant_context, body)
-            p_BoBcm_B = body.CalcCenterOfMassInBodyFrame(com_plant_context)
-            p_WBcm = X_WB @ np.append(p_BoBcm_B, 1)
-            com_per_link[name][idx] = p_WBcm[:3]
-
-    frequency = cfg.frequency
-    wait_time = cfg.wait_time
-
-    return (
-        states,
-        hip_real_torque,
-        left_contact_forces,
-        left_contact_points,
-        right_contact_forces,
-        right_contact_points,
-        com_xyz[:, 0],
-        com_xyz[:, 1],
-        com_xyz[:, 2],
-        com_vxyz[:, 0],
-        com_vxyz[:, 1],
-        com_vxyz[:, 2],
-        total_mass,
-        time_array,
-        com_per_link,
-        frequency,
-        wait_time,
-    )
+    # Further down, update the return statement to include the contact points:
+    return (states, hip_real_torque, desired_hip_angle, left_contact_forces, 
+            left_contact_points, right_contact_forces, right_contact_points, 
+            com_xyz, com_vxyz, time_array)
 
 def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
     """
@@ -196,7 +114,7 @@ def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
         states = simulate(
             cfg=cfg,
             meshcat=meshcat,
-            N_simulation_steps=steps, # This N_simulation_steps is now mainly for preallocation/return shape
+            # N_simulation_steps=steps, # This N_simulation_steps is now mainly for preallocation/return shape
             simulation_time_step=cfg.calib_time_step,
             start_state=new_state,
             calib=True,
@@ -222,7 +140,7 @@ def run_sim(cfg: SimConfig, meshcat) -> tuple:
     return simulate(
         cfg=cfg,
         meshcat=meshcat,
-        N_simulation_steps=sim_time,
+        # N_simulation_steps=sim_time,
         simulation_time_step=cfg.sim_time_step,
         start_state=stable_state,
     )
@@ -249,3 +167,55 @@ def run_joint_sliders(cfg: SimConfig, meshcat):
     start_state = get_home_state(cfg.start_height)
     sliders.SetPositions(start_state[0 : plant.num_positions()])
     sliders.Run(diagram, None)
+
+
+class Controller(LeafSystem):
+    def __init__(self, cfg: SimConfig):
+        LeafSystem.__init__(self)
+        # Store only the parameters needed for the PD control
+        self.hip_kp = cfg.hip_kp
+        self.hip_kd = cfg.hip_kd
+        self.frequency = cfg.frequency
+        self.amplitude = cfg.amplitude
+
+        # Define the size of the state vector and actuator command
+        self.num_states = 15
+        self.num_actuators = 1
+
+        # Initialize the target state vector for the hip joint
+        self.target_state = np.zeros(self.num_states)
+
+        # Declare the input port for the robot's state
+        self.DeclareVectorInputPort("state", self.num_states)
+        
+        # Declare the output port for the control signal (torque)
+        self.DeclareVectorOutputPort("control", self.num_actuators, self.SetControlOutput)
+        
+        # Declare the output port for the desired hip angle for logging
+        self.DeclareVectorOutputPort("desired_hip_angle", 1, self.SetDesiredAngleOutput)
+
+    def SetControlOutput(self, context, output):
+        """Calculates and sets the PD control output."""
+        # Get the current state from the input port
+        current_state = self.get_input_port(0).Eval(context)
+        
+        # Update the desired trajectory based on time
+        elapsed_time = context.get_time()
+        act_start_time = 1
+        if elapsed_time > act_start_time:
+            adjusted_time = elapsed_time - act_start_time
+            ang_freq = 2 * np.pi * self.frequency
+            self.target_state[7] = self.amplitude * np.sin(ang_freq * adjusted_time)
+            self.target_state[14] = self.amplitude * ang_freq * np.cos(ang_freq * adjusted_time) # Correct index for hip velocity is 14
+        
+        # Calculate PD control errors
+        pos_error = self.target_state[7] - current_state[7]
+        vel_error = self.target_state[14] - current_state[14] # Correct index for hip velocity is 14
+
+        # Compute the feedback torque
+        feedback_torque = self.hip_kp * pos_error + self.hip_kd * vel_error
+        output.SetFromVector([feedback_torque])
+
+    def SetDesiredAngleOutput(self, context, output):
+        """Outputs the desired hip angle for logging."""
+        output.SetFromVector([self.target_state[7]])
