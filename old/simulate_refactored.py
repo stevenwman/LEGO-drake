@@ -45,7 +45,7 @@ from model_definition import (
     Controller,
     urdf_file_name,
 )
-from meshcat_setup import start_meshcat
+from old.meshcat_setup import start_meshcat
 
 from pydrake.all import (
     MeshcatVisualizer,

@@ -1,13 +1,13 @@
 import os
 import xml.etree.ElementTree as ET
 from xml_helper import *
-from geom_gen import generate_feet_geom
-import numpy as np 
+from geom_gen import generate_feet_geom # Use the optimized function
+import numpy as np
+from pathlib import Path
 
-# full absolute path to this script
-script_path = os.path.abspath(__file__)
-# directory containing this script
-script_dir  = os.path.dirname(script_path)
+# Use pathlib for robust path handling
+script_path = Path(__file__).resolve()
+script_dir = script_path.parent
 
 # dict to store design params
 params = {
@@ -34,6 +34,7 @@ params = {
         "X": 0.24, "Y": 0.24, "Z": 0.24,
         # feet box dimensions
         "box_x": 0.101, "box_y": 0.0527,
+        "scad_fn": 100,
     },
     # dynamic properties
     'dynamics' : {
@@ -51,19 +52,18 @@ ft_prm = params['feet_vars_dict']
 params['file_id'] = '_'.join(f"{key}_{value}" for key, value in ft_prm.items())
 ft_prm['file_id'] = params['file_id']
 
+
 left_color = "1 0 0 0.5"
 right_color = "0 0 1 0.5"
 mass_color = "0 1 0 0.5"
 
-viz_scaling = params['l_leg'] / 0.153
-
-# s = params['s']
+# scaling visualization parameters
+viz_scaling = params['l_leg'] / 0.153 # harcoded to look roughly nice
 s = params['s'] * viz_scaling
-# s_hand = params['s_hand']
 s_hand = params['s_hand'] * viz_scaling
 
 # generate feet geometries
-generate_feet_geom(ft_prm, script_dir)
+generate_feet_geom(ft_prm, str(script_dir))
 
 robot = ET.Element('robot', name='walker')
 left_leg = ET.SubElement(robot, 'link', name='left_leg')
@@ -106,7 +106,7 @@ comp_config = {
 }
 
 mass_links_parents = {}
-urdf_prefix = "file://"+script_dir+"/"
+urdf_prefix = "file://"+script_dir.as_uri()+"/"
 # urdf_prefix = "package://LEGO-drake/stickbot/"
 
 # loop through left and right sides

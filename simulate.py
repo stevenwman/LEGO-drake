@@ -39,8 +39,8 @@ class SimConfig:
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Run Mugatu walker simulation.")
-    parser.add_argument("--simulate_walker", action="store_true", help="Run the walker sim. (otherwise JointSliders)")
-    parser.add_argument("--duration", type=float, default=30.0, help="Simulation duration (default 30).")
+    parser.add_argument("--walk", action="store_true", help="Run the walker sim. (otherwise JointSliders)")
+    parser.add_argument("--duration", type=float, default=10.0, help="Simulation duration (default 30).")
 
     args = parser.parse_args()
     config = SimConfig(
@@ -51,7 +51,7 @@ def main():
 
     meshcat = start_meshcat()
 
-    if not args.simulate_walker:
+    if not args.walk:
         print("Opening joint sliders …")
         print(meshcat.web_url())
         run_joint_sliders(config, meshcat)

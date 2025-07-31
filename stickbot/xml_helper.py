@@ -33,7 +33,7 @@ def add_fixed_joint(link: ET.Element, name: str, parent: str, child: str, pos: s
 
 def save_file(tree: ET.ElementTree, robot: ET.Element, name: str, script_dir: str) -> None:
     ET.indent(tree, space="  ", level=0)
-    ET.dump(robot)
+    # ET.dump(robot)
     output_file = f'{script_dir}/{name}.urdf'
     tree.write(output_file, encoding='utf-8', xml_declaration=True)
     print(f"URDF file saved as {output_file}")

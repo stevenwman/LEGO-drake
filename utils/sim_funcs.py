@@ -45,7 +45,6 @@ def simulate(
     meshcat.Delete()
     visualizer = MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
     ContactVisualizer.AddToBuilder(
-        # builder, plant, meshcat, ContactVisualizerParams(radius=0.002 * cfg.scale)
         builder, plant, meshcat, ContactVisualizerParams(radius=0.002)
     )
     diagram = builder.Build()
@@ -112,7 +111,8 @@ def simulate(
                 print(f"Simulation time: {curr_time:.2f}s, Step: {idx+1}/{N_simulation_steps}")
         else:
             controller_output = controller_output_port.Eval(controller_context)
-            print(f"Simulation time: {curr_time:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
+            if idx % int(1 / simulation_time_step) == 0:
+                print(f"Simulation time: {curr_time:.2f}s, Step: {idx+1}/{N_simulation_steps}, Control signal: {controller_output}", end='\r', flush=True)
             # # Update MeshCat visualization with all COMs
             # if cfg.visualize_coms and idx % 10 == 0:
             #     publish_all_coms()

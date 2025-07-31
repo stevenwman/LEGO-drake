@@ -93,13 +93,6 @@ class Controller(LeafSystem):
         # Init FT measurements
         orientation_cartesian_dim = 6
 
-        # Init gain matrix
-        n_unactuated = self.controller_plant.num_positions() - self.controller_plant.num_actuators()
-        """ quaternion difference is size 3 and quaternion is size 4"""
-        self.gain_matrix = np.zeros((self.m, self.n - 1)) 
-        self.gain_matrix[:,n_unactuated:self.n_pos] = np.eye(self.m)*self.hip_kp #gains for elements corresponding to positions
-        self.gain_matrix[:,self.n_pos+n_unactuated:] = np.eye(self.m)*self.hip_kd #gains for elements corresponding to velocities
-
         #Init target state
         self.target_state = get_home_state(cfg.start_height)
         # print("Init target state:", self.target_state)
@@ -141,24 +134,15 @@ class Controller(LeafSystem):
         return difference_state
     
     @staticmethod
-    def ComputeControl(self, current_state, desired_state, gain_matrix, feedforward=None):
+    def ComputeControl(self, current_state, desired_state):
         error = desired_state[7] - current_state[7]
         self.integral_error += (error * self.control_period)
         self.derivative_error = (self.current_state[7] - self.prev_state[7]) / self.control_period
         feedback_input = self.hip_kp*error + self.hip_ki * self.integral_error + self.hip_kd * self.derivative_error
-        # feedback_input = gain_matrix@(Controller.ComputeStateDifference(desired_state,current_state)) #change to quaternion difference (quaternion is IMU --> input for feedback controller)
         self.prev_error = error
         self.time += self.control_period
         self.prev_state = self.current_state
-        # print("Elapsed time:", elapsed_time)
-        # print("Control Signal:", feedback_input)
-        if feedforward is None:
-            return feedback_input
-        else:
-            return feedback_input + feedforward
-
-    def LegStateMachine(self):
-        pass
+        return feedback_input
 
     def Update(self, context, events):
         # get the current state
@@ -189,7 +173,6 @@ class Controller(LeafSystem):
         self.control_signal[:] = self.ComputeControl(self,
             current_state=self.current_state,
             desired_state=self.target_state,
-            gain_matrix=self.gain_matrix
             )
 
     def SetOutput(self, context, output):
@@ -205,7 +188,6 @@ class ContactResultsToArray(LeafSystem):
                 [ScopedName("walker", "left_leg"), ScopedName("walker", "ground")],
                 [ScopedName("walker", "right_leg"), ScopedName("walker", "ground")],
             ]
-            # collision_pairs: list[list[ScopedName]] # Requires scoped names
             ):
 
         LeafSystem.__init__(self)
