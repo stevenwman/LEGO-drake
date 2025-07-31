@@ -43,6 +43,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run Mugatu walker simulation.")
     parser.add_argument("--walk", action="store_true", help="Run the walker sim. (otherwise JointSliders)")
     parser.add_argument("--duration", type=float, default=10.0, help="Simulation duration (default 30).")
+    parser.add_argument("--save", action="store_true", help="Save simulation data to CSV files.")
 
     args = parser.parse_args()
     config = SimConfig(
@@ -65,7 +66,8 @@ def main():
     base_dir = os.path.join(os.getcwd(), "run_sim_save_data")
     alldata_folder = os.path.join(base_dir, f"data_for_{label}")
     plots_folder = os.path.join(alldata_folder, f"plots_{label}")
-    os.makedirs(plots_folder, exist_ok=True)
+    if args.save:
+        os.makedirs(plots_folder, exist_ok=True)
 
     csv_base = os.path.join(alldata_folder, f"all_data_{label}")
 
