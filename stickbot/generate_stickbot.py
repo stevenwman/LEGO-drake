@@ -1,7 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
-from xml_helper import *
-from geom_gen import generate_feet_geom # Use the optimized function
+from stickbot.xml_helper import *
+from stickbot.geom_gen import generate_feet_geom # Use the optimized function
 import numpy as np
 from pathlib import Path
 
@@ -46,7 +46,6 @@ def generate_stickbot(params=params_mugatu):
     # generate file_id from feet_vars_dict
     params['file_id'] = '_'.join(f"{key}_{value}" for key, value in ft_prm.items())
     ft_prm['file_id'] = params['file_id']
-
 
     left_color = "1 0 0 0.5"
     right_color = "0 0 1 0.5"
@@ -180,11 +179,12 @@ def generate_stickbot(params=params_mugatu):
                                 color=color)
             if mesh_type == 'collision':
                 drake_tag = ET.SubElement(mesh_tag, 'drake:proximity_properties')
-                ET.SubElement(drake_tag, 'drake:rigid_hydroelastic')
+                # ET.SubElement(drake_tag, 'drake:rigid_hydroelastic')
+                ET.SubElement(drake_tag, 'drake:compliant_hydroelastic')
                 ET.SubElement(drake_tag, 'drake:mu_dynamic', value=str(params['dynamics']['feet_friction']))
                 ET.SubElement(drake_tag, 'drake:mu_static', value=str(params['dynamics']['feet_friction']))
                 ET.SubElement(drake_tag, 'drake:mesh_resolution_hint', value=str(params['dynamics']['mesh_resolution_hint']))
-                # ET.SubElement(drake_tag, 'drake:hydroelastic_modulus', value=str(params['dynamics']['hydroelastic_modulus']))
+                ET.SubElement(drake_tag, 'drake:hydroelastic_modulus', value=str(params['dynamics']['hydroelastic_modulus']))
 
     # Add hip and fixed joint
     add_rev_joint(robot, 'hip', parent='left_leg', child='right_leg', pos=f"{0} {0} {0}")
@@ -207,16 +207,17 @@ def generate_stickbot(params=params_mugatu):
     ground = ET.SubElement(robot, 'link', name='ground')
     ground_visual = ET.SubElement(ground, 'visual')
     ET.SubElement(ground_visual, 'origin', xyz="0 0 -0.25", rpy="0 0 0")
-    ET.SubElement(ET.SubElement(ground_visual, 'geometry'), 'box', size="10 10 0.5")
+    ET.SubElement(ET.SubElement(ground_visual, 'geometry'), 'box', size="100 100 0.5")
     ET.SubElement(ET.SubElement(ground_visual, 'material'), 'color', rgba="0.93 .74 .4 1")
     ground_collision = ET.SubElement(ground, 'collision')
     ET.SubElement(ground_collision, 'origin', xyz="0 0 -0.25", rpy="0 0 0")
-    ET.SubElement(ET.SubElement(ground_collision, 'geometry'), 'box', size="10 10 0.5")
-    ET.SubElement(ground_collision, 'drake:compliant_hydroelastic')
+    ET.SubElement(ET.SubElement(ground_collision, 'geometry'), 'box', size="100 100 0.5")
+    # ET.SubElement(ground_collision, 'drake:compliant_hydroelastic')
+    ET.SubElement(ground_collision, 'drake:rigid_hydroelastic')
     ET.SubElement(ground_collision, 'drake:mu_dynamic', value=str(params['dynamics']['ground_friction']))
     ET.SubElement(ground_collision, 'drake:mu_static', value=str(params['dynamics']['ground_friction']))
     ET.SubElement(ground_collision, 'drake:mesh_resolution_hint', value=str(params['dynamics']['mesh_resolution_hint']))
-    ET.SubElement(ground_collision, 'drake:hydroelastic_modulus', value=str(params['dynamics']['ground_hydroelastic_modulus']))
+    # ET.SubElement(ground_collision, 'drake:hydroelastic_modulus', value=str(params['dynamics']['ground_hydroelastic_modulus']))
     add_fixed_joint(robot, 'fixed_ground', parent='world', child='ground', pos="0 0 0")
 
     # export urdf

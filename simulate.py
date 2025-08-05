@@ -10,6 +10,7 @@ from utils.helpers import start_meshcat
 import matplotlib.pyplot as plt
 import os
 import numpy as np # Make sure numpy is imported
+from scipy.spatial.transform import Rotation as R
 
 @dataclass
 class SimConfig:
@@ -31,10 +32,13 @@ class SimConfig:
     hip_ki: float = 0
     hip_kd: float = 3e-2
     # Actuation parameters
-    frequency = 1.8
+    # frequency = 1.7
+    # frequency: float = 1.72256482
     wait_time = 0
-    counter = 0
-    amplitude = 35 * np.pi / 180
+    # amplitude = 35 * np.pi / 180
+    # amplitude : float = 0.58107015 
+    frequency = 2.2        
+    amplitude = 0.36608022
 
 
 def main():
@@ -74,10 +78,17 @@ def main():
     (states, hip_real_torque, desired_hip_angle, left_contact_forces,
         left_contact_points, right_contact_forces, right_contact_points,
         com_xyz, com_vxyz, time_array) = run_sim(config, meshcat)
-    
+
+    all_quats = states[:,[1,2,3,0]]
+    all_rots = R.from_quat(all_quats)
+    rpy_degs = all_rots.as_euler('xyz',degrees=True)
+
     # Split the composite COM vectors for your existing plotting code
     com_x, com_y, com_z = com_xyz[:, 0], com_xyz[:, 1], com_xyz[:, 2]
     com_vx, com_vy, com_vz = com_vxyz[:, 0], com_vxyz[:, 1], com_vxyz[:, 2]
+
+    com_displacement = np.linalg.norm(com_xyz[-1] - com_xyz[0], axis=0)
+    print(f"Center of Mass displacement: {com_displacement:.3f} m")
 
     print(f"Simulation completed. Data saved to {base_dir}")
 
@@ -91,7 +102,7 @@ def main():
     # Change the figure size and subplot layout to accommodate the new plot
     plt.figure(figsize=(12, 24)) # Increased height to make space for 5 subplots
 
-    n_plots = 5
+    n_plots = 5 + 1
     ith_plot = 1
 
     # Plot 1: Contact Force Magnitudes
@@ -149,6 +160,17 @@ def main():
     plt.xlabel('Time (s)')
     plt.ylabel('Angle (deg)')
     plt.title('Controller Hip Angle Tracking')
+    plt.grid(True)
+    plt.legend()
+    ith_plot += 1
+
+    plt.subplot(n_plots, 1, ith_plot)
+    plt.plot(time_array, rpy_degs[:, 0], label='Roll (deg)')
+    plt.plot(time_array, rpy_degs[:, 1], label='Pitch (deg)')
+    plt.plot(time_array, rpy_degs[:, 2], label='Yaw (deg)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Angle (deg)')
+    plt.title('Robot Orientation (Roll, Pitch, Yaw) Over Time')
     plt.grid(True)
     plt.legend()
 

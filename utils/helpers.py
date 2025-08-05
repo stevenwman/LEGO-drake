@@ -8,24 +8,20 @@ def start_meshcat():
     print("_"*120)
     return meshcat
 
-def setup_walker_plant(timestep, filename=None):
+def setup_walker_plant(timestep, filename):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=timestep)
     parser = Parser(plant)
-    # parser.AddModelsFromString(create_walker_urdf(scale = scale, ground_friction = ground_friction, feet_friction = feet_friction),"urdf")
     parser.AddModels(filename)
-    plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
     plant.Finalize()
     instance = plant.GetModelInstanceByName("walker")
     return plant, scene_graph, builder, instance
 
-def setup_walker_controller_plant(timestep, filename=None):
+def setup_walker_controller_plant(timestep, filename):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=timestep)
     parser = Parser(plant)
-    # parser.AddModelsFromString(create_walker_urdf(scale = scale, ground_friction = ground_friction, feet_friction = feet_friction), "urdf")
     parser.AddModels(filename)
-    plant.set_discrete_contact_approximation(DiscreteContactApproximation.kLagged)
     plant.Finalize()
     diagram = builder.Build()
     instance = plant.GetModelInstanceByName("walker")

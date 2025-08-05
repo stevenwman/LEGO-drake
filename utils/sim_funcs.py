@@ -5,8 +5,8 @@ from utils.helpers import *
 
 def simulate(
     cfg: SimConfig,
-    meshcat: Meshcat,
     simulation_time_step: float,
+    meshcat: Meshcat = None,
     start_state = None,
     calib: bool = False,
 ) -> tuple:
@@ -38,7 +38,11 @@ def simulate(
     contact_logger = LogVectorOutput(contact_results_system.get_output_port(0), builder)
 
     # Add visualizer and state logger
-    visualizer = MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
+    if meshcat is not None:
+        visualizer = MeshcatVisualizer.AddToBuilder(builder, scene_graph, meshcat)
+        ContactVisualizer.AddToBuilder(
+            builder, plant, meshcat, ContactVisualizerParams(radius=0.001)
+        )
     state_logger = LogVectorOutput(plant.get_state_output_port(), builder)
     
     # Build and run the simulation
@@ -48,10 +52,13 @@ def simulate(
     plant_context = plant.GetMyContextFromRoot(context)
     plant.SetPositionsAndVelocities(plant_context, start_state)
     
-    meshcat.Delete()
-    visualizer.StartRecording(False)
-    simulator.AdvanceTo(cfg.duration)
-    visualizer.PublishRecording()
+    if meshcat is not None:
+        meshcat.Delete()
+        visualizer.StartRecording(False)
+        simulator.AdvanceTo(cfg.duration)
+        visualizer.PublishRecording()
+    else:
+        simulator.AdvanceTo(cfg.duration)
 
     # --- Post-Processing ---
     # Retrieve logged data
@@ -110,7 +117,7 @@ def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
     steps = int(3 * (1 / cfg.calib_time_step))
     # Run a short simulation with calibration flag
     for i in range(2):
-        print(f"Calibrating quaternion orientation iter {i + 1}")
+        # print(f"Calibrating quaternion orientation iter {i + 1}")
         states = simulate(
             cfg=cfg,
             meshcat=meshcat,
@@ -129,19 +136,18 @@ def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
         new_state[4:7] = final_pos
     return new_state
 
-def run_sim(cfg: SimConfig, meshcat) -> tuple:
+def run_sim(cfg: SimConfig, meshcat: Meshcat = None) -> tuple:
     """Run a full simulation including calibration and return results."""
     # First calibrate quaternion orientation
-    sim_time = int(cfg.duration * (1/cfg.sim_time_step)) #time in seconds
+    # sim_time = int(cfg.duration * (1/cfg.sim_time_step)) #time in seconds
     start_state = get_home_state(cfg.start_height)
     stable_state = calibrate_quaternion(cfg, meshcat, start_state)
     # The N_simulation_steps here is now just for the shape of the output arrays,
     # as the actual simulation advances to cfg.duration
     return simulate(
         cfg=cfg,
-        meshcat=meshcat,
-        # N_simulation_steps=sim_time,
         simulation_time_step=cfg.sim_time_step,
+        meshcat=meshcat,
         start_state=stable_state,
     )
 
