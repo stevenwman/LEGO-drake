@@ -1,3 +1,8 @@
+gcc7
+Jinja2
+typeguard
+empy
+drake
 numpy<2
 pandas>=2.2
 matplotlib==3.8.4

@@ -44,4 +44,8 @@ If you want a bigger walker try scaling up the robot with --scale. Try '`python3
 
 Example terminal command that does all of these things: '`python3 simulate_mugatu.py --simulate_walker --visualize_coms --save_data --duration 10 --scale 2`'
 
+## Design Optimization
+
+Need to get `openscad-nightly` as well.
+
 

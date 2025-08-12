@@ -104,7 +104,7 @@ def generate_stickbot(params=params_mugatu):
     }
 
     mass_links_parents = {}
-    urdf_prefix = "file://"+script_dir.as_uri()+"/"
+    urdf_prefix = script_dir.as_uri()+"/"
     # urdf_prefix = "package://LEGO-drake/stickbot/"
 
     # loop through left and right sides

@@ -135,7 +135,7 @@
     <visual name="left_leg_foot_visual">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="file://file:///home/sman/Desktop/Work/Research/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/left_foot_geom.obj" />
+        <mesh filename="file:///home/stevenwman/Work/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/left_foot_geom.obj" />
       </geometry>
       <material>
         <color rgba="1 0 0 0.5" />
@@ -144,7 +144,7 @@
     <collision name="left_leg_foot_collision">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="file://file:///home/sman/Desktop/Work/Research/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/left_foot_geom.obj" />
+        <mesh filename="file:///home/stevenwman/Work/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/left_foot_geom.obj" />
       </geometry>
       <material>
         <color rgba="1 0 0 0.5" />
@@ -199,7 +199,7 @@
     <visual name="right_leg_foot_visual">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="file://file:///home/sman/Desktop/Work/Research/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/right_foot_geom.obj" />
+        <mesh filename="file:///home/stevenwman/Work/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/right_foot_geom.obj" />
       </geometry>
       <material>
         <color rgba="0 0 1 0.5" />
@@ -208,7 +208,7 @@
     <collision name="right_leg_foot_collision">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="file://file:///home/sman/Desktop/Work/Research/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/right_foot_geom.obj" />
+        <mesh filename="file:///home/stevenwman/Work/LEGO-drake/stickbot/X_0.24_Y_0.24_Z_0.24_box_x_0.101_box_y_0.0527_scad_fn_100/right_foot_geom.obj" />
       </geometry>
       <material>
         <color rgba="0 0 1 0.5" />

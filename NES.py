@@ -76,9 +76,9 @@ def dict_to_empty_dataclass(data_dict):
 
 @dataclass
 class NES_Config:
-    pop_size: int = 10 
+    pop_size: int = 15 
     sigma: float = 0.2
-    alpha: float = 0.1
+    alpha: float = 0.05
 
 
 def rew_fn(param_vector) -> float:
@@ -158,4 +158,4 @@ def run_NES(iters=None):
 
 
 if __name__ == "__main__":
-    run_NES(15)
+    run_NES(25)
