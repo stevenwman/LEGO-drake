@@ -33,11 +33,13 @@ opt_params = {
     "amplitude": tuple(a * np.pi / 180 for a in (35, 20, 45)),
 }
 
+
 @dataclass
 class NES_Config:
     pop_size: int = 25
     sigma: float = 0.2
     alpha: float = 0.05
+
 
 def sanitize_key(key: str) -> str:
     sanitized = key.replace("-", "_").replace(" ", "_")
@@ -87,7 +89,7 @@ def compute_reward(
     return float(final_reward)
 
 
-def _evaluate_one(param_vector: np.ndarray) -> float:
+def _evaluate_one(param_vector: np.ndarray, duration_override: Optional[float] = None) -> float:
     """Evaluate a single parameter vector by running the Drake simulation.
 
     Mirrors the logic in `rew_fn` from `NES.py`, but without printing.
@@ -95,18 +97,8 @@ def _evaluate_one(param_vector: np.ndarray) -> float:
     # Avoid mutating the shared `sim_config` by copying before modifications
     local_config = sim_config.copy()
 
-    for param_value, key in zip(param_vector, opt_params.keys()):
-        local_config[key] = float(param_value)
-
-    config_obj = dict_to_empty_dataclass(local_config)
-    com_xyz = run_sim(config_obj)[7]
-    return compute_reward(com_xyz, config_obj.sim_time_step, config_obj.duration)
-
-
-def _evaluate_one_with_override(param_vector: np.ndarray, duration_override: float) -> float:
-    """Top-level variant that overrides simulation duration. Picklable for spawn."""
-    local_config = sim_config.copy()
-    local_config["duration"] = float(duration_override)
+    if duration_override is not None:
+        local_config["duration"] = float(duration_override)
 
     for param_value, key in zip(param_vector, opt_params.keys()):
         local_config[key] = float(param_value)
@@ -114,6 +106,9 @@ def _evaluate_one_with_override(param_vector: np.ndarray, duration_override: flo
     config_obj = dict_to_empty_dataclass(local_config)
     com_xyz = run_sim(config_obj)[7]
     return compute_reward(com_xyz, config_obj.sim_time_step, config_obj.duration)
+
+
+# (Removed) _evaluate_one_with_override: unified into _evaluate_one with optional override
 
 
 def run_NES_parallel(
@@ -157,10 +152,7 @@ def run_NES_parallel(
                 sim_id = total_sims + 1
                 total_sims += 1
                 print(f"sim #{sim_id} started")
-                if duration_override is None:
-                    fut = executor.submit(_evaluate_one, params)
-                else:
-                    fut = executor.submit(_evaluate_one_with_override, params, float(duration_override))
+                fut = executor.submit(_evaluate_one, params, duration_override)
                 future_to_info[fut] = (sim_id, idx)
 
             for fut in as_completed(future_to_info):

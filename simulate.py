@@ -15,7 +15,8 @@ from scipy.spatial.transform import Rotation as R
 @dataclass
 class SimConfig:
     """Container for tunable simulation parameters."""
-    urdf_filename: str = "stickbot/stick_bot_generated.urdf"
+    # urdf_filename: str = "stickbot/stick_bot_generated.urdf"
+    urdf_filename: str = "stickbots/out/1aa0a9fbcd3b/stickbot.urdf"
     # Sim params
     duration: float = 30.0
     sim_time_step: float = 0.001    # Simulation time step in seconds
