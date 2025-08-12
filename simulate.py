@@ -37,8 +37,8 @@ class SimConfig:
     wait_time = 0
     # amplitude = 35 * np.pi / 180
     # amplitude : float = 0.58107015 
-    frequency = 2.2        
-    amplitude = 0.36608022
+    frequency = 1.80036385     
+    amplitude = 0.34906585   
 
 
 def main():
