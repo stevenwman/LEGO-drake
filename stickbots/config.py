@@ -11,7 +11,7 @@ class FeetVars:
     Z: float = 0.24
     box_x: float = 0.101
     box_y: float = 0.0527
-    scad_fn: int = 100
+    fn: int = 100 # mesh resolution
 
 
 @dataclass

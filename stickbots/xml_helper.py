@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from .config import SimParams
+import numpy as np
 
 
 def add_box_visual(link: ET.Element, name: str, xyz: str, size: str, color: str) -> None:
@@ -46,6 +47,16 @@ def add_drake_tag(mesh_tag: ET.Element, sim_params: SimParams) -> None:
     ET.SubElement(drake_tag, 'drake:hydroelastic_modulus', value=str(sim_params.hydroelastic_modulus))
 
 
+def add_transmission(link: ET.Element) -> None:
+    transm = ET.SubElement(link, 'transmission', name='hip_joint_transmission')
+    ET.SubElement(transm, 'type').text = 'transmission_interface/SimpleTransmission'
+    joint = ET.SubElement(transm, 'joint', name='hip')
+    ET.SubElement(joint, 'hardwareInterface').text = 'hardware_interface/EffortJointInterface'
+    actuator = ET.SubElement(transm, 'actuator', name='hip_joint_motor')
+    ET.SubElement(actuator, 'hardwareInterface').text = 'hardware_interface/EffortJointInterface'
+    ET.SubElement(transm, 'mechanicalReduction').text = '1.0'
+
+
 def add_ground(link: ET.Element, sim_params: SimParams) -> None:
     ground = ET.SubElement(link, 'link', name='ground')
     ground_visual = ET.SubElement(ground, 'visual')
@@ -61,3 +72,25 @@ def add_ground(link: ET.Element, sim_params: SimParams) -> None:
     ET.SubElement(ground_collision, 'drake:mu_static', value=str(sim_params.feet_mu_stat))
     ET.SubElement(ground_collision, 'drake:mesh_resolution_hint', value=str(sim_params.feet_mesh_resolution_hint))
     add_fixed_joint(link, 'fixed_ground', parent='world', child='ground', pos="0 0 0")
+
+
+def add_mass_link(
+        robot: ET.Element, 
+        side: str, 
+        comp_name: str,
+        inertia: np.array,
+        y_offset: float,
+        mass: float,
+) -> None:
+    link_name = f"{side}_{comp_name}"
+    mass_link_name = f"{link_name}_link"
+    mass_link = ET.SubElement(robot, 'link', name=mass_link_name)
+    inertial = ET.SubElement(mass_link, 'inertial', name=f"{link_name}_inertial")
+    J = inertia
+    ET.SubElement(inertial, 'origin', xyz=f"0 {y_offset} 0", rpy="0 0 0")
+    ET.SubElement(inertial, 'mass', value=str(mass))
+    ET.SubElement(inertial, 'inertia',
+                  ixx=f"{J[0,0]}", ixy=f"{J[0,1]}", ixz=f"{J[0,2]}", 
+                  iyy=f"{J[1,1]}", iyz=f"{J[1,2]}", izz=f"{J[2,2]}")
+    
+    return mass_link, mass_link_name

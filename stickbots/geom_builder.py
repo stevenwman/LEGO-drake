@@ -10,7 +10,8 @@ def _generate_single_foot(
         scad_file: Path, 
         prefix: str, 
         feet_params: FeetVars, 
-        left_foot_flag: int
+        left_foot_flag: int,
+        verbose: bool = False,
 ) -> None:
     """
     Generates geometry for a single foot by calling OpenSCAD.
@@ -24,9 +25,8 @@ def _generate_single_foot(
     command.extend(["-o", str(output_dir_obj), "--export-format", "obj", str(scad_file)])
     
     try: 
-        print(command)
         subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"✅ Generated {output_dir_obj.name}")
+        if verbose: print(f"✅ Generated {output_dir_obj.name}")
     except subprocess.CalledProcessError as e:
         print(f"❌ Error generating {output_dir_obj.name}: {e.stderr}")
         raise
@@ -53,7 +53,7 @@ def generate_feet_geom(
 
     tasks = [
         {'prefix': 'left_', 'left_foot_flag': 1},
-        {'prefix': 'right_', 'left_foot_flag': 0}
+        {'prefix': 'right_', 'left_foot_flag': -1}
     ]
 
     with ThreadPoolExecutor(max_workers=2) as executor:
