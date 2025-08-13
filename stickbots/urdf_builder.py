@@ -15,11 +15,7 @@ def build_urdf(
     robot = ET.Element('robot', name="walker")
     left_leg = ET.SubElement(robot, 'link', name='left_leg')
     right_leg = ET.SubElement(robot, 'link', name='right_leg')
-
-    side_dict = {
-        'left': left_leg,
-        'right': right_leg
-    }
+    side_dict = {'left': left_leg, 'right': right_leg}
 
     mass_link_parents = dict()
     comp_config = CompConfig(params).comp_config    
@@ -35,8 +31,9 @@ def build_urdf(
             if 'mass' in comp_name:
                 color = CompConfig.mass_color
                 J = 0 * np.eye(3)
-                mass_link, mass_link_name = add_mass_link(robot, side, comp_name, 
-                                                          J, 0, comp_params['mass']) 
+                mass_link, mass_link_name = add_mass_link(
+                    robot, side, comp_name, J, 0, comp_params['mass']
+                )
                 mass_link_parents[mass_link_name] = {'parent': link.get('name'), 'xyz': xyz}
                 xyz = np.zeros(3)
                 visual_root = mass_link
@@ -48,27 +45,27 @@ def build_urdf(
         color = CompConfig.left_color if side == 'left' else CompConfig.right_color
         y_val = params.gap_ft/2 if side == 'left' else -params.gap_ft/2
         xyz = np.array([-params.hip_offset, y_val, -params.l_leg])
-        mass_y_offset = params.feet_vars.box_y/2
-        mass_y_offset = mass_y_offset if side == 'left' else -mass_y_offset
+        mass_y_offset = params.feet_vars.box_y * ((side == 'left') - 0.5)
         J = 0 * np.eye(3)
         
-        mass_link, mass_link_name = add_mass_link(robot, side, 'foot', J, 
-                                                  mass_y_offset, params.feet_mass)       
+        mass_link, mass_link_name = add_mass_link(
+            robot, side, 'foot', J, mass_y_offset, params.feet_mass
+            )       
         mass_link_parents[mass_link_name] = {'parent': link.get('name'), 'xyz': xyz}
         
         for mesh_type in ['visual', 'collision']:
             mesh_tag = add_mesh(mass_link, mesh_type, f"{side}_leg_foot_{mesh_type}",
                                 xyz="0 0 0", filename=f"meshes/{side}_foot_geom.obj",
                                 color=color)
-            
             if mesh_type == 'collision': add_drake_tag(mesh_tag, sim_params)
 
     add_rev_joint(robot, 'hip', parent='left_leg', child='right_leg', pos="0 0 0")
     for link, val in mass_link_parents.items():
         xyz = val['xyz']
-        add_fixed_joint(robot, f"{link}_joint", 
-                        parent=val['parent'], child=link, 
-                        pos=' '.join(map(str, xyz)))
+        add_fixed_joint(
+            robot, f"{link}_joint", parent=val['parent'], child=link, pos=' '.join(map(str, xyz))
+            )
+        
     add_transmission(robot)
     add_ground(robot, sim_params)
 

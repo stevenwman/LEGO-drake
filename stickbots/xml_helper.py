@@ -82,6 +82,9 @@ def add_mass_link(
         y_offset: float,
         mass: float,
 ) -> None:
+    """
+    Add links with masses to the robot.
+    """
     link_name = f"{side}_{comp_name}"
     mass_link_name = f"{link_name}_link"
     mass_link = ET.SubElement(robot, 'link', name=mass_link_name)
