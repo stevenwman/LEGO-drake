@@ -1,15 +1,15 @@
 import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from .config import FeetVars
+from .config import StickbotParams, FeetVars
 from dataclasses import fields
 
 
 def _generate_single_foot(
-        output_dir: Path, 
-        scad_file: Path, 
-        prefix: str, 
-        feet_params: FeetVars, 
+        output_dir: Path,
+        scad_file: Path,
+        prefix: str,
+        feet_params: FeetVars,
         left_foot_flag: int,
         verbose: bool = False,
 ) -> None:

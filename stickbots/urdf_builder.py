@@ -1,13 +1,14 @@
 from pathlib import Path
 import numpy as np
-from .config import StickbotParams, CompConfig, SimParams
+from .config import *
 from .xml_helper import *
 
 
 def build_urdf(
-        params: StickbotParams,
-        sim_params: SimParams,
+        urdf_params: StickbotParams,
+        mesh_params: FeetVars,
         urdf_dir: Path,
+        urdf_key: str
 ) -> Path:
     """
     Generate URDF file for the stickbot.
@@ -18,7 +19,7 @@ def build_urdf(
     side_dict = {'left': left_leg, 'right': right_leg}
 
     mass_link_parents = dict()
-    comp_config = CompConfig(params).comp_config    
+    comp_config = CompConfig(urdf_params).comp_config
 
     for side, link in side_dict.items():
         for comp_name, comp_params in comp_config.items():
@@ -43,13 +44,13 @@ def build_urdf(
             
         # Add feet link with mesh
         color = CompConfig.left_color if side == 'left' else CompConfig.right_color
-        y_val = params.gap_ft/2 if side == 'left' else -params.gap_ft/2
-        xyz = np.array([-params.hip_offset, y_val, -params.l_leg])
-        mass_y_offset = params.feet_vars.box_y * ((side == 'left') - 0.5)
+        y_val = urdf_params.gap_ft/2 if side == 'left' else -urdf_params.gap_ft/2
+        xyz = np.array([-urdf_params.hip_offset, y_val, -urdf_params.l_leg])
+        mass_y_offset = mesh_params.box_y * ((side == 'left') - 0.5)
         J = 0 * np.eye(3)
         
         mass_link, mass_link_name = add_mass_link(
-            robot, side, 'foot', J, mass_y_offset, params.feet_mass
+            robot, side, 'foot', J, mass_y_offset, urdf_params.feet_mass
             )       
         mass_link_parents[mass_link_name] = {'parent': link.get('name'), 'xyz': xyz}
         
@@ -57,7 +58,7 @@ def build_urdf(
             mesh_tag = add_mesh(mass_link, mesh_type, f"{side}_leg_foot_{mesh_type}",
                                 xyz="0 0 0", filename=f"meshes/{side}_foot_geom.obj",
                                 color=color)
-            if mesh_type == 'collision': add_drake_tag(mesh_tag, sim_params)
+            if mesh_type == 'collision': add_drake_tag(mesh_tag, urdf_params)
 
     add_rev_joint(robot, 'hip', parent='left_leg', child='right_leg', pos="0 0 0")
     for link, val in mass_link_parents.items():
@@ -67,11 +68,11 @@ def build_urdf(
             )
         
     add_transmission(robot)
-    add_ground(robot, sim_params)
+    add_ground(robot, urdf_params)
 
     # Export
     tree = ET.ElementTree(robot)
     ET.indent(tree, space="  ", level=0)
-    urdf_path = Path(urdf_dir) / "stickbot.urdf"
+    urdf_path = Path(urdf_dir) / f"stickbot_{urdf_key}.urdf"
     tree.write(urdf_path, encoding='utf-8', xml_declaration=True)
     return urdf_path

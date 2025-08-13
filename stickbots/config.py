@@ -11,24 +11,7 @@ class FeetVars:
     Z: float = 0.24
     box_x: float = 0.101
     box_y: float = 0.0527
-    fn: int = 100 # mesh resolution
-
-
-@dataclass
-class SimParams:
-    """
-    Parameters for simulation used in URDF
-    """
-    # Friction settings
-    ground_mu_dyn: float = 0.9
-    ground_mu_stat: float = 0.9
-    feet_mu_dyn: float = 0.9  
-    feet_mu_stat: float = 0.9
-    # Hydroelastic settings
-    hydroelastic_modulus: float = 5e7
-    ground_hydroelastic_modulus: float = 1e8
-    ground_mesh_resolution_hint: float = 0.01
-    feet_mesh_resolution_hint: float = 0.01
+    fn: int = 100 # mesh resolution    
 
     
 @dataclass
@@ -44,10 +27,16 @@ class StickbotParams:
     leg_mass: float = 0.1
     feet_mass: float = 0.13
     hand_mass: float = 0.15
-    feet_vars: FeetVars = field(default_factory=lambda: [])
-
-    def __init__(self, feet_vars_in: FeetVars):
-        self.feet_vars = feet_vars_in
+    # Friction settings
+    ground_mu_dyn: float = 0.9
+    ground_mu_stat: float = 0.9
+    feet_mu_dyn: float = 0.9  
+    feet_mu_stat: float = 0.9
+    # Hydroelastic settings
+    hydroelastic_modulus: float = 5e7
+    ground_hydroelastic_modulus: float = 1e8
+    ground_mesh_resolution_hint: float = 0.01
+    feet_mesh_resolution_hint: float = 0.01
 
 
 @dataclass

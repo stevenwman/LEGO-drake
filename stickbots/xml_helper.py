@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from .config import SimParams
+from .config import StickbotParams
 import numpy as np
 
 
@@ -38,7 +38,7 @@ def add_fixed_joint(link: ET.Element, name: str, parent: str, child: str, pos: s
     ET.SubElement(joint, 'child', link=child)
 
 
-def add_drake_tag(mesh_tag: ET.Element, sim_params: SimParams) -> None:
+def add_drake_tag(mesh_tag: ET.Element, sim_params: StickbotParams) -> None:
     drake_tag = ET.SubElement(mesh_tag, 'drake:proximity_properties')
     ET.SubElement(drake_tag, 'drake:compliant_hydroelastic')
     ET.SubElement(drake_tag, 'drake:mu_dynamic', value=str(sim_params.feet_mu_dyn))
@@ -57,7 +57,7 @@ def add_transmission(link: ET.Element) -> None:
     ET.SubElement(transm, 'mechanicalReduction').text = '1.0'
 
 
-def add_ground(link: ET.Element, sim_params: SimParams) -> None:
+def add_ground(link: ET.Element, sim_params: StickbotParams) -> None:
     ground = ET.SubElement(link, 'link', name='ground')
     ground_visual = ET.SubElement(ground, 'visual')
     ET.SubElement(ground_visual, 'origin', xyz="0 0 -0.25", rpy="0 0 0")
