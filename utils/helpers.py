@@ -12,6 +12,9 @@ def setup_walker_plant(timestep, filename):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=timestep)
     parser = Parser(plant)
+
+    print(filename)
+
     parser.AddModels(filename)
     plant.Finalize()
     instance = plant.GetModelInstanceByName("walker")

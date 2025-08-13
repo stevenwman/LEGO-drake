@@ -4,12 +4,14 @@ from concurrent.futures import ThreadPoolExecutor
 from .config import FeetVars
 from dataclasses import fields
 
+
 def _generate_single_foot(
         output_dir: Path, 
         scad_file: Path, 
         prefix: str, 
         feet_params: FeetVars, 
-        left_foot_flag: int) -> None:
+        left_foot_flag: int
+) -> None:
     """
     Generates geometry for a single foot by calling OpenSCAD.
     """
@@ -33,7 +35,8 @@ def _generate_single_foot(
 def generate_feet_geom(
         feet_params: FeetVars, 
         module_dir: str,
-        output_dir: str) -> None:
+        output_dir: str
+) -> None:
     """
     Generates left and right foot geometries in parallel.    
     """

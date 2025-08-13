@@ -224,15 +224,6 @@ def generate_stickbot(params=params_mugatu):
     tree = ET.ElementTree(robot)
     save_file(tree, robot, 'stick_bot_generated', script_dir)
 
-    # # make modifications compatible with Mujoco
-    # ET.SubElement(ET.SubElement(robot, 'mujoco'), 'compiler', strippath="false")
-    # tree_mjc = ET.ElementTree(robot)
-    # for elem in tree_mjc.iter():
-    #     if elem.tag == 'mesh':
-    #         # Change the filename to absolute path
-    #         elem.set('filename', f"{script_dir}/{params['file_id']}/{elem.get('filename').split('/')[-1]}")
-    # save_file(tree_mjc, robot, 'stick_bot_generated_mjc', script_dir)
-
 if __name__ == "__main__":
     # Generate the stick bot URDF
     generate_stickbot(params=params_mugatu)

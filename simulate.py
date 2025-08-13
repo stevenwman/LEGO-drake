@@ -16,7 +16,8 @@ from scipy.spatial.transform import Rotation as R
 class SimConfig:
     """Container for tunable simulation parameters."""
     # urdf_filename: str = "stickbot/stick_bot_generated.urdf"
-    urdf_filename: str = "stickbots/out/1aa0a9fbcd3b/stickbot.urdf"
+    # urdf_filename: str = "stickbots/out/1aa0a9fbcd3b/stickbot.urdf"
+    urdf_filename: str = None
     # Sim params
     duration: float = 30.0
     sim_time_step: float = 0.001    # Simulation time step in seconds
@@ -48,13 +49,16 @@ def main():
     parser.add_argument("--walk", action="store_true", help="Run the walker sim. (otherwise JointSliders)")
     parser.add_argument("--duration", type=float, default=10.0, help="Simulation duration (default 30).")
     parser.add_argument("--save", action="store_true", help="Save simulation data to CSV files.")
+    parser.add_argument("--urdf", type=str, default=None)
 
     args = parser.parse_args()
     config = SimConfig(
         duration=args.duration,
+        urdf_filename = args.urdf
     )
 
-    print(f"Using URDF file: {config.urdf_filename}")
+    # print(f"Using URDF file: {config.urdf_filename}")
+    print(f"Using URDF file: {args.urdf}")
 
     meshcat = start_meshcat()
 

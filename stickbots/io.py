@@ -4,6 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 from stickbots.config import FeetVars
 
+
 def params_hash(params: FeetVars) -> str:
     """
     Generates a hash for the given parameters.
@@ -11,6 +12,7 @@ def params_hash(params: FeetVars) -> str:
     payload = asdict(params)
     blob = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.md5(blob).hexdigest()[:12]
+
 
 def prepare_output_dirs(base_out: Path, key: str) -> tuple[Path, Path]:
     """
