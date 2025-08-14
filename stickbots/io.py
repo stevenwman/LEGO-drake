@@ -1,6 +1,5 @@
 import hashlib
 import json 
-from dataclasses import asdict
 from pathlib import Path
 from stickbots.config import *
 
@@ -9,7 +8,7 @@ def link_params_hash(params: StickbotParams) -> str:
     """
     Generates a hash for the given parameters.
     """
-    payload = asdict(params)
+    payload = params.__dict__
     blob = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.md5(blob).hexdigest()
 
@@ -17,7 +16,7 @@ def mesh_params_hash(feet_params: FeetVars) -> str:
     """
     Generates a hash for the given mesh parameters.
     """
-    payload = asdict(feet_params)
+    payload = feet_params.__dict__
     blob = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.md5(blob).hexdigest()
 

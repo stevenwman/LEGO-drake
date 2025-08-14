@@ -12,35 +12,35 @@ import os
 import numpy as np # Make sure numpy is imported
 from scipy.spatial.transform import Rotation as R
 
-@dataclass
-class SimConfig:
-    """Container for tunable simulation parameters."""
-    # urdf_filename: str = "stickbot/stick_bot_generated.urdf"
-    # urdf_filename: str = "stickbots/out/1aa0a9fbcd3b/stickbot.urdf"
-    urdf_filename: str = None
-    # Sim params
-    duration: float = 30.0
-    sim_time_step: float = 0.001    # Simulation time step in seconds
-    calib_time_step: float = 0.01   # Calibration time step in seconds
-    start_height: float = 0.16  # Initial height of the robot's COM
-    save_data: bool = False
-    visualize_coms: bool = False
-    # Dynamics params
-    ground_friction: float = 0.9 # set to 0.4 for scale <= 1 or 0.9 for scale > 1
-    feet_friction: float = 0.9 # set to 0.7 for scale <= 1 or 0.9 for scale > 1
-    # Controller params
-    control_period: float = 0.001
-    hip_kp: float = 1.5
-    hip_ki: float = 0
-    hip_kd: float = 3e-2
-    # Actuation parameters
-    # frequency = 1.7
-    # frequency: float = 1.72256482
-    wait_time = 0
-    # amplitude = 35 * np.pi / 180
-    # amplitude : float = 0.58107015 
-    frequency = 1.80036385     
-    amplitude = 0.34906585   
+# @dataclass
+# class SimConfig:
+#     """Container for tunable simulation parameters."""
+#     # urdf_filename: str = "stickbot/stick_bot_generated.urdf"
+#     # urdf_filename: str = "stickbots/out/1aa0a9fbcd3b/stickbot.urdf"
+#     urdf_filename: str = None
+#     # Sim params
+#     duration: float = 30.0
+#     sim_time_step: float = 0.001    # Simulation time step in seconds
+#     calib_time_step: float = 0.01   # Calibration time step in seconds
+#     start_height: float = 0.16  # Initial height of the robot's COM
+#     save_data: bool = False
+#     visualize_coms: bool = False
+#     # Dynamics params
+#     ground_friction: float = 0.9 # set to 0.4 for scale <= 1 or 0.9 for scale > 1
+#     feet_friction: float = 0.9 # set to 0.7 for scale <= 1 or 0.9 for scale > 1
+#     # Controller params
+#     control_period: float = 0.001
+#     hip_kp: float = 1.5
+#     hip_ki: float = 0
+#     hip_kd: float = 3e-2
+#     # Actuation parameters
+#     # frequency = 1.7
+#     # frequency: float = 1.72256482
+#     wait_time = 0
+#     # amplitude = 35 * np.pi / 180
+#     # amplitude : float = 0.58107015 
+#     frequency = 1.80036385     
+#     amplitude = 0.34906585   
 
 
 def main():

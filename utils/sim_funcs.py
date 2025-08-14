@@ -1,10 +1,10 @@
 # In files.zip/utils/sim_funcs.py
 
-from simulate import SimConfig
+from utils.optim import DrakeParams
 from utils.helpers import *
 
 def simulate(
-    cfg: SimConfig,
+    cfg: DrakeParams,
     simulation_time_step: float,
     meshcat: Meshcat = None,
     start_state = None,
@@ -94,13 +94,13 @@ def simulate(
             left_contact_points, right_contact_forces, right_contact_points, 
             com_xyz, com_vxyz, time_array)
 
-def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
+def calibrate_quaternion(cfg: DrakeParams, meshcat, new_state) -> np.ndarray:
     """
     Run a brief calibration simulation to average the quaternion.
 
     Parameters
     ----------
-    cfg : SimConfig
+    cfg : DrakeParams
         The simulation configuration.
     meshcat : Meshcat
         The meshcat instance used for visualisation.
@@ -136,7 +136,7 @@ def calibrate_quaternion(cfg: SimConfig, meshcat, new_state) -> np.ndarray:
         new_state[4:7] = final_pos
     return new_state
 
-def run_sim(cfg: SimConfig, meshcat: Meshcat = None) -> tuple:
+def run_sim(cfg: DrakeParams, meshcat: Meshcat = None) -> tuple:
     """Run a full simulation including calibration and return results."""
     # First calibrate quaternion orientation
     # sim_time = int(cfg.duration * (1/cfg.sim_time_step)) #time in seconds
@@ -151,7 +151,7 @@ def run_sim(cfg: SimConfig, meshcat: Meshcat = None) -> tuple:
         start_state=stable_state,
     )
 
-def run_joint_sliders(cfg: SimConfig, meshcat):
+def run_joint_sliders(cfg: DrakeParams, meshcat):
     """Launch joint sliders for URDF visualisation."""
     plant, scene_graph, builder, instance = setup_walker_plant(
         timestep=cfg.sim_time_step,
@@ -176,7 +176,7 @@ def run_joint_sliders(cfg: SimConfig, meshcat):
 
 
 class Controller(LeafSystem):
-    def __init__(self, cfg: SimConfig):
+    def __init__(self, cfg: DrakeParams):
         LeafSystem.__init__(self)
         # Store only the parameters needed for the PD control
         self.hip_kp = cfg.hip_kp

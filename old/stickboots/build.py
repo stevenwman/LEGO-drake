@@ -65,6 +65,6 @@ def build_stickbot(params: StickbotParams, base_out: Path | str = "stickbots/out
 
     # Save params (for provenance)
     with open(robot_dir / "params.json", "w") as f:
-        json.dump(asdict(params), f, indent=2)
+        json.dump(params.__dict__, f, indent=2)
 
     return BuildResult(urdf_path=urdf_path, robot_dir=robot_dir, mesh_dir=src_mesh_dir, key=key)

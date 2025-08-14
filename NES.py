@@ -1,161 +1,149 @@
-from stickbot.generate_stickbot import generate_stickbot
-from dataclasses import dataclass, fields, make_dataclass, field
-import numpy as np
-from utils.sim_funcs import run_sim
-import matplotlib.pyplot as plt
+from dataclasses import dataclass
+from utils.sample import compute_reward, sample_parameter
+from utils.optim import *
+from stickbots.config import StickbotParams, FeetVars
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import os
+from copy import deepcopy
 
-
-sim_config ={
-    'urdf_filename': "stickbot/stick_bot_generated.urdf",
-    'duration': 15.0,
-    'sim_time_step': 0.001,
-    'calib_time_step': 0.01,
-    'save_data': False,
-    'ground_friction': 0.9, # set to 0.4 for scale <= 1 or 0.9 for scale > 1
-    'feet_friction': 0.9, # set to 0.7 for scale <= 1 or 0.9 for scale > 1
-    'control_period': 0.001,
-    'wait_time': 0,
-    'start_height': 0.16, # Initial height of the robot's COM
-    'hip_kp': 1.5,
-    'hip_kd': 3e-2,
-}
-
-morpho_params: dict = {
-    # gap between feets
-    'gap_ft': 0.032,
-    # width between leg and arm
-    'w_arm' : 0.0625,
-    # length of arm and leg links
-    'l_arm' : 0.104, 'l_leg' : 0.153,
-    # hip offset
-    # 'hip_offset' : -0.014,
-    'hip_offset' : -0.01,
-    # masses 
-    'leg_mass' : 0.1, 'feet_mass' : 0.13, 'hand_mass' : 0.15,
-    # feet geom params
-    'feet_vars_dict' : {
-        # Ellipsoid diameters
-        "X": 0.24, "Y": 0.24, "Z": 0.24,
-        # feet box dimensions
-        "box_x": 0.101, "box_y": 0.0527,
-        "scad_fn": 100,
-    },
-    # dynamic properties
-    'dynamics' : {
-        'ground_friction' : 0.9,
-        'feet_friction' : 0.9,
-        'hydroelastic_modulus' : 5e7,
-        'ground_hydroelastic_modulus' : 1e8,
-        'ground_mesh_resolution_hint' : 0.01,
-        'mesh_resolution_hint' : 0.01,
-    }     
-}
-
-opt_params = {
-    'frequency': (1.5, 1.2, 2.2),
-    # 'amp_deg': (35, 20, 45),  # amplitude in degrees
-    'amplitude': tuple(a * np.pi / 180 for a in (35, 20, 45)),  # convert to radians
-}
-
-
-def sanitize_key(key):
-    sanitized = key.replace('-', '_').replace(' ', '_')
-    if sanitized[0].isdigit():
-        sanitized = '_' + sanitized
-    return sanitized
-
-def dict_to_empty_dataclass(data_dict):
-    fields = []
-    for key in data_dict.keys():
-        sanitized_key = sanitize_key(key)
-        fields.append((sanitized_key, type(None), field(default=data_dict[key]))) # Or use a different default empty value
-
-    DynamicDataclass = make_dataclass('DynamicDataclass', fields)
-
-    return DynamicDataclass()
+np.random.seed(69420)  # For reproducibility
+total_sims = 0
 
 @dataclass
 class NES_Config:
-    pop_size: int = 15 
+    pop_size: int = 5
+    iterations: int = 5
     sigma: float = 0.2
     alpha: float = 0.05
+    max_workers: int | None = None
+    duration_override: float = 20
 
 
-def rew_fn(param_vector) -> float:
-    """Cost function to evaluate the performance of a given parameter set."""
-    config = sim_config
+def run_NES_parallel(cfg: NES_Config):
+    sim_config = SimConfig()
+    urdf_params = StickbotParams()
+    act_params = ActuationParams()
+    feet_params = FeetVars()
+    param_range = ParamRange()
 
-    for param_val, key in zip(param_vector, opt_params.keys()):
-        config[key] = param_val
+    opt_params = OptimParams(
+        urdf_params=urdf_params,
+        act_params=act_params,
+        feet_params=feet_params,
+        param_range=param_range,
+        sim_config=sim_config
+    )
 
-    config = dict_to_empty_dataclass(config)
-    print(f"Running simulation with parameters: {param_vector}", end="")
-    _,_,_,_,_,_,_, com_xyz, _, _ = run_sim(config)
-    com_displacement = np.linalg.norm(com_xyz[-1] - com_xyz[0], axis=0)
-    print(f", COM displacement: {com_displacement:.4f}", end="")
+    num_dims = len(opt_params.attr2vec())
+    print(f"{num_dims} optimization parameters")
 
-    com_zs = com_xyz[:, 2]
-    alive = (com_zs > 0) &  (com_zs < 0.25)
+    curr_params = opt_params.attr2vec()
+    params_hist: np.ndarray = np.zeros((cfg.iterations, num_dims))
+    params_hist[0] = curr_params[:]
+    pop_hist: np.ndarray = np.zeros((cfg.iterations, cfg.pop_size, num_dims))
+    pop_rew_hist: np.ndarray = np.zeros((cfg.iterations, cfg.pop_size))
+    rew_hist: np.ndarray = np.zeros(cfg.iterations)
 
-    final_reward = np.sum(alive) * config.sim_time_step  # Reward for being alive
+    if cfg.max_workers is None:
+        cfg.max_workers = os.cpu_count() or 1
+    print(f"{cfg.max_workers} max workers")
 
-    if not alive[-1]:
-        print(", COM out of bounds", end="")
-        final_reward -= config.duration
-    else:
-        final_reward += com_displacement * 10
+    for iter in range(cfg.iterations):
+        print(f"Iteration {iter + 1}/{cfg.iterations} with parameters: {curr_params}")
 
-    print(f" -> Final reward: {final_reward:.4f}")
+        noise = np.random.randn(cfg.pop_size-1, num_dims)
+        noise = np.insert(noise, 0, np.zeros((1, num_dims)), axis=0)
+        candidate_params = curr_params + cfg.sigma * noise
+        candidate_params = np.clip(candidate_params, opt_params.param_min, opt_params.param_max)
+        pop_hist[iter] = candidate_params
 
-    return final_reward
+        # Evaluate the population in parallel, tracking start/end of each sim
+        with ProcessPoolExecutor(max_workers=cfg.max_workers, 
+                                 mp_context=mp.get_context("spawn")) as executor:
+            global total_sims
+            rewards: np.ndarray = np.zeros(cfg.pop_size, dtype=float)
+            future_to_info = {}
+            for idx, params in enumerate(candidate_params):
+                sim_id = total_sims + 1
+                total_sims += 1
 
-def clip_params(param_vector):
-    """Ensure parameters stay within defined bounds."""
-    for i, key in enumerate(opt_params.keys()):
-        param_vector[i] = np.clip(param_vector[i], opt_params[key][1], opt_params[key][2])
-    return param_vector
+                temp_param_obj = deepcopy(opt_params)
+                temp_param_obj.vec2attr(params)
+                assert (temp_param_obj.attr2vec() == params).all()
 
-def run_NES(iters=None):
-    config = NES_Config()
+                candidate_params[idx] = params.astype(float)
+                print(f"sim #{sim_id} started with params: {params}")
+                fut = executor.submit(sample_parameter, deepcopy(temp_param_obj), cfg.duration_override)
+                future_to_info[fut] = (sim_id, idx)
 
-    w = np.zeros(len(opt_params.keys()))
-    for i, key in enumerate(opt_params.keys()):
-        w[i] = opt_params[key][0]
+            for fut in as_completed(future_to_info):
+                sim_id, idx = future_to_info[fut]
+                try:
+                    result = fut.result()
+                except Exception as exc:  # re-raise after logging which sim ended
+                    print(f"sim #{sim_id} ended with error: {exc}")
+                    raise
+                rewards[idx] = float(result)
+                print(f"sim #{sim_id} ended with reward {rewards[idx]}")
 
-        w_hist = [w.copy()]
+        rewards_array = np.array(rewards, dtype=float)
+        mean_reward = float(np.mean(rewards_array))
+        max_reward = float(np.max(rewards_array))
+        pop_rew_hist[iter] = rewards_array
+        rew_hist[iter] = mean_reward
+        print("Mean reward:", mean_reward, "Max reward:", max_reward)
 
-    for _ in range(iters):
-        print(f"Iteration {_ + 1}/{iters} with parameters: {w}")
-        N = np.random.randn(config.pop_size, len(w))
-        R = np.zeros(config.pop_size)
-        for j in range(config.pop_size):
-            w_try = w + config.sigma*N[j]
-            w_try = clip_params(w_try)
-            R[j] = rew_fn(w_try)
-        print("Mean reward:", np.mean(R), "Max reward:", np.max(R))
-        A = (R - np.mean(R)) / np.std(R)
-        w = w + config.alpha/(config.pop_size*config.sigma) * np.dot(N.T, A)
-        w = clip_params(w)
-        print(f"Updated parameters: {w}")
+        advantages = (rewards_array - np.mean(rewards_array)) / np.std(rewards_array)
+        curr_params = (
+            curr_params
+            + (cfg.alpha / (cfg.pop_size * cfg.sigma)) * np.dot(noise.T, advantages)
+        )
+        print(f"Updated parameters: {curr_params}")
 
-        w_hist.append(w.copy())
-        w_hist_array = np.array(w_hist)
-        plt.figure(figsize=(10, 6))
-        plots = len(opt_params.keys())        
-        for i, key in enumerate(opt_params.keys()):
-            plt.subplot(plots, 1, i + 1)
-            plt.plot(w_hist_array[:, i], label=sanitize_key(key))
-            plt.xlabel('Iteration')
-            plt.ylabel(f'{sanitize_key(key)}')
-            plt.legend()
-            plt.grid(True)
-        # save figure 
-        plt.tight_layout()
-        plt.savefig('parameter_evolution.png')
+        params_hist[iter + 1] = curr_params[:]
+        history_array = np.array(params_hist)
 
-    print("Final parameters:", w)
-    print("Final reward:", rew_fn(w))
+        # Import for plotting only in the main process to reduce worker overhead
+        import matplotlib.pyplot as plt  # noqa: WPS433 (local import by design)
+        from matplotlib.ticker import MaxNLocator  # noqa: WPS433
 
+        num_plots = len(opt_params.param_mask_keys) + 1  # add third subplot for average return
+        fig, axes = plt.subplots(num_plots, 1, figsize=(10, 8), sharex=True)
+
+        # Ensure axes is iterable even when num_plots == 1
+        if num_plots == 1:
+            axes = [axes]
+
+        # X values aligned to iterations (exclude initial params row for alignment)
+        num_iters_done = len(rew_hist)
+        x_iter = list(range(1, num_iters_done + 1))
+
+        # Parameter traces (aligned to iteration indices)
+        for i, key in enumerate(opt_params.param_mask_keys):
+            ax = axes[i]
+            if num_iters_done > 0:
+                ax.plot(x_iter, history_array[1:, i], label=key)
+            ax.set_ylabel(f"{key}")
+            ax.legend()
+            ax.grid(True)
+
+        # Average return subplot
+        ax_ret = axes[-1]
+        if num_iters_done > 0:
+            ax_ret.plot(x_iter, rew_hist, label="avg_return")
+        ax_ret.set_xlabel("Iteration")
+        ax_ret.set_ylabel("Average return")
+        ax_ret.legend()
+        ax_ret.grid(True)
+
+        # Match x-axis ticks/limits across subplots and use integer ticks
+        ax_ret.set_xlim(1, max(1, num_iters_done))
+        ax_ret.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        fig.tight_layout()
+        fig.savefig("parameter_evolution_parallel.png")
 
 if __name__ == "__main__":
-    run_NES(25)
+    config = NES_Config()
+    run_NES_parallel(config)
