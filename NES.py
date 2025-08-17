@@ -6,18 +6,22 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from copy import deepcopy
+import matplotlib.pyplot as plt  # noqa: WPS433 (local import by design)
+from matplotlib.ticker import MaxNLocator  # noqa: WPS433
+import pickle as pkl
+import datetime
 
 np.random.seed(69420)  # For reproducibility
 total_sims = 0
 
 @dataclass
 class NES_Config:
-    pop_size: int = 5
-    iterations: int = 5
+    pop_size: int = 25
+    iterations: int = 10
     sigma: float = 0.2
     alpha: float = 0.05
     max_workers: int | None = None
-    duration_override: float = 20
+    duration_override: float = 1
 
 
 def run_NES_parallel(cfg: NES_Config):
@@ -37,10 +41,14 @@ def run_NES_parallel(cfg: NES_Config):
 
     num_dims = len(opt_params.attr2vec())
     print(f"{num_dims} optimization parameters")
+    
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_path = f"logs/run_{now}"
+    os.makedirs(log_path, exist_ok=True)
+    os.makedirs(f"{log_path}/live_plots", exist_ok=True)
 
     curr_params = opt_params.attr2vec()
     params_hist: np.ndarray = np.zeros((cfg.iterations, num_dims))
-    params_hist[0] = curr_params[:]
     pop_hist: np.ndarray = np.zeros((cfg.iterations, cfg.pop_size, num_dims))
     pop_rew_hist: np.ndarray = np.zeros((cfg.iterations, cfg.pop_size))
     rew_hist: np.ndarray = np.zeros(cfg.iterations)
@@ -101,48 +109,85 @@ def run_NES_parallel(cfg: NES_Config):
         )
         print(f"Updated parameters: {curr_params}")
 
-        params_hist[iter + 1] = curr_params[:]
-        history_array = np.array(params_hist)
+        params_hist[iter] = curr_params[:]
+        plot_NES(iter, opt_params, rew_hist, params_hist, log_path)
+        plot_NES_2d(iter, opt_params, pop_hist, pop_rew_hist, log_path)
 
-        # Import for plotting only in the main process to reduce worker overhead
-        import matplotlib.pyplot as plt  # noqa: WPS433 (local import by design)
-        from matplotlib.ticker import MaxNLocator  # noqa: WPS433
+    with open(f"{log_path}/run_hist.pkl", 'wb') as f:
+        run_hist = {
+            'pop_hist': pop_hist,
+            'pop_rew_hist': pop_rew_hist,
+            'opt_params': opt_params
+        }
+        pkl.dump(run_hist, f)
 
-        num_plots = len(opt_params.param_mask_keys) + 1  # add third subplot for average return
-        fig, axes = plt.subplots(num_plots, 1, figsize=(10, 8), sharex=True)
 
-        # Ensure axes is iterable even when num_plots == 1
-        if num_plots == 1:
-            axes = [axes]
+def plot_NES_2d(
+        iter: int, 
+        opt_params: OptimParams,
+        pop_hist: np.ndarray, 
+        pop_rew_hist: np.ndarray,
+        log_path: str
+) -> None:
+    # plot the two variables at current iteration
+    # first element is x because it's the nominal params, all other are circles
+    # all dots are color-coded
+    # x y lims are from opt_params
+    plt.figure()
+    plt.scatter(pop_hist[iter, :, 0], pop_hist[iter, :, 1], c=pop_rew_hist[iter], cmap='viridis')
+    plt.scatter(pop_hist[iter, 0, 0], pop_hist[iter, 0, 1], color='red', marker='X', s=10)
+    plt.colorbar(label='Reward')
+    plt.xlabel(opt_params.param_mask_keys[0])
+    plt.ylabel(opt_params.param_mask_keys[1])
+    plt.xlim(opt_params.param_min[0] * 0.9, opt_params.param_max[0] * 1.1)
+    plt.ylim(opt_params.param_min[1] * 0.9, opt_params.param_max[1] * 1.1)
+    plt.title(f'Population at Iteration {iter}')
+    plt.grid(True)
+    plt.savefig(f"{log_path}/live_plots/population_2d_iter_{iter}.png")
+    plt.close()
 
-        # X values aligned to iterations (exclude initial params row for alignment)
-        num_iters_done = len(rew_hist)
-        x_iter = list(range(1, num_iters_done + 1))
 
-        # Parameter traces (aligned to iteration indices)
-        for i, key in enumerate(opt_params.param_mask_keys):
-            ax = axes[i]
-            if num_iters_done > 0:
-                ax.plot(x_iter, history_array[1:, i], label=key)
-            ax.set_ylabel(f"{key}")
-            ax.legend()
-            ax.grid(True)
+def plot_NES(
+        iter: int,
+        opt_params: OptimParams, 
+        rew_hist: np.ndarray, 
+        params_hist: np.ndarray,
+        log_path: str
+) -> None:
 
-        # Average return subplot
-        ax_ret = axes[-1]
-        if num_iters_done > 0:
-            ax_ret.plot(x_iter, rew_hist, label="avg_return")
-        ax_ret.set_xlabel("Iteration")
-        ax_ret.set_ylabel("Average return")
-        ax_ret.legend()
-        ax_ret.grid(True)
+    num_plots = len(opt_params.param_mask_keys) + 1  # add third subplot for average return
+    fig, axes = plt.subplots(num_plots, 1, figsize=(10, 8), sharex=True)
 
-        # Match x-axis ticks/limits across subplots and use integer ticks
-        ax_ret.set_xlim(1, max(1, num_iters_done))
-        ax_ret.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # Ensure axes is iterable even when num_plots == 1
+    if num_plots == 1:
+        axes = [axes]
 
-        fig.tight_layout()
-        fig.savefig("parameter_evolution_parallel.png")
+    # X values aligned to iterations (exclude initial params row for alignment)
+    num_iters_done = iter + 1
+    x_iter = list(range(num_iters_done))
+
+    # Parameter traces (aligned to iteration indices)
+    for i, key in enumerate(opt_params.param_mask_keys):
+        ax = axes[i]
+        ax.plot(x_iter, params_hist[x_iter, i], label=key)
+        ax.set_ylabel(f"{key}")
+        ax.legend()
+        ax.grid(True)
+
+    # Average return subplot
+    ax_ret = axes[-1]
+    ax_ret.plot(x_iter, rew_hist[x_iter], label="avg_return")
+    ax_ret.set_xlabel("Iteration")
+    ax_ret.set_ylabel("Average return")
+    ax_ret.legend()
+    ax_ret.grid(True)
+
+    # Match x-axis ticks/limits across subplots and use integer ticks
+    ax_ret.set_xlim(min(x_iter), max(x_iter))
+    ax_ret.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    fig.tight_layout()
+    fig.savefig(f"{log_path}/live_plots/parameter_evolution_parallel.png")
 
 if __name__ == "__main__":
     config = NES_Config()
