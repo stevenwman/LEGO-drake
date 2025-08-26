@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt  # noqa: WPS433 (local import by design)
 from matplotlib.ticker import MaxNLocator  # noqa: WPS433
 import pickle as pkl
 import datetime
+import tyro
 
 np.random.seed(69420)  # For reproducibility
 total_sims = 0
@@ -22,6 +23,7 @@ class NES_Config:
     alpha: float = 0.05
     max_workers: int | None = None
     duration_override: float = 1
+    greedy: bool = False
 
 
 def run_NES_parallel(cfg: NES_Config):
@@ -103,10 +105,14 @@ def run_NES_parallel(cfg: NES_Config):
         print("Mean reward:", mean_reward, "Max reward:", max_reward)
 
         advantages = (rewards_array - np.mean(rewards_array)) / np.std(rewards_array)
-        curr_params = (
-            curr_params
-            + (cfg.alpha / (cfg.pop_size * cfg.sigma)) * np.dot(noise.T, advantages)
-        )
+        if NES_Config.greedy:
+            best_idx = np.argmax(rewards_array)
+            curr_params = pop_hist[iter, best_idx]
+        else:
+            curr_params = (
+                curr_params
+                + (cfg.alpha / (cfg.pop_size * cfg.sigma)) * np.dot(noise.T, advantages)
+            )
         print(f"Updated parameters: {curr_params}")
 
         params_hist[iter] = curr_params[:]
@@ -190,5 +196,5 @@ def plot_NES(
     fig.savefig(f"{log_path}/live_plots/parameter_evolution_parallel.png")
 
 if __name__ == "__main__":
-    config = NES_Config()
+    config = tyro.cli(NES_Config)
     run_NES_parallel(config)
