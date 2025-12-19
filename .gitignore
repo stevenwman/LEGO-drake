@@ -3,3 +3,17 @@ run_sim_save_data/
 .vscode/
 robots/
 logs/
+
+
+Miniconda3-*.exe
+Miniconda3-*.sh
+legoFootOptimCCK.zip
+
+SavedHtmls/
+
+
+*.pyc
+*.pkl
+*.npz
+
+

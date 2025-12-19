@@ -2,6 +2,7 @@
 
 from utils.optim import DrakeParams
 from utils.helpers import *
+import webbrowser
 
 def simulate(
     cfg: DrakeParams,
@@ -57,8 +58,13 @@ def simulate(
         visualizer.StartRecording(False)
         simulator.AdvanceTo(cfg.duration)
         visualizer.PublishRecording()
+        print(" Opening Meshcat download...")
+        webbrowser.open(meshcat.web_url() + "/download")   
     else:
         simulator.AdvanceTo(cfg.duration)
+
+  
+ 
 
     # --- Post-Processing ---
     # Retrieve logged data
@@ -88,7 +94,7 @@ def simulate(
         plant.SetPositionsAndVelocities(plant_context, states[i, :])
         com_xyz[i] = plant.CalcCenterOfMassPositionInWorld(plant_context, [instance])
         com_vxyz[i] = plant.CalcCenterOfMassTranslationalVelocityInWorld(plant_context, [instance])
-        
+   
     # Further down, update the return statement to include the contact points:
     return (states, hip_real_torque, desired_hip_angle, left_contact_forces, 
             left_contact_points, right_contact_forces, right_contact_points, 

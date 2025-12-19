@@ -27,8 +27,9 @@ class SimConfig:
 class ActuationParams:
     hip_kp: float = 1.5
     hip_kd: float = 3e-2
-    amplitude: float = 35 * np.pi / 180  # Convert degrees to radians
-    frequency: float = 1.5  # Example frequency in Hz 
+    amplitude: float =0.51777882 #0.49133407#28deg    35 * np.pi / 180  # Convert degrees to radians .20708687# 
+    frequency: float = 1.72771918 #1.7496934#    1.5  # Example frequency in Hz 1.89007795# 
+                    #Current best vals, 53 Reward
 
 
 @dataclass
@@ -37,17 +38,19 @@ class DrakeParams(SimConfig, ActuationParams):
 
 @dataclass
 class ParamRange:
-    # X: float = (0.24, 0.24 * 0.9, 0.24 * 1.1)
-    # Y: float = (0.24, 0.24 * 0.9, 0.24 * 1.1)
-    # Z: float = (0.24, 0.24 * 0.9, 0.24 * 1.1)
-    # box_x: float = (0.101, 0.101 * 0.9, 0.101 * 1.1)
-    # box_y: float = (0.0527, 0.0527 * 0.9, 0.0527 * 1.1)
+    #X: float = (0.24, 0.24 * 0.9, 0.24 * 1.1) #X rad Sphere dimensions to cut
+    #Y: float = (0.24, 0.24 * 0.9, 0.24 * 1.1) # X Rad
+    # Z: float = (0.24, 0.24 * 0.9, 0.24 * 1.1) #Leave along for now
+    #box_x: float = (0.101, 0.101 * 0.9, 0.101 * 1.1)  #Sets X space to cut sphere
+    #box_y: float = (0.0527, 0.0527 * 0.9, 0.0527 * 1.1) #Sets Y space to cut spehere
     # fn: int = 100 # mesh resolution
 
-    # gap_ft: float = (0.032, 0.032 * 0.9, 0.032 * 1.1)
-    # w_arm: float = (0.0625, 0.0625 * 0.9, 0.0625 * 1.1)
-    # l_arm: float = (0.104, 0.104 * 0.9, 0.104 * 1.1)
-    # l_leg: float = (0.153, 0.153 * 0.9, 0.153 * 1.1)
+
+    #Hold to same
+    # gap_ft: float = (0.032, 0.032 * 0.9, 0.032 * 1.1) #Distance btwn sphere center
+    # w_arm: float = (0.0625, 0.0625 * 0.9, 0.0625 * 1.1) #Shoulder to shoulder
+    # l_arm: float = (0.104, 0.104 * 0.9, 0.104 * 1.1) #length arm
+    # l_leg: float = (0.153, 0.153 * 0.9, 0.153 * 1.1) #Hip to top of foot
     # hip_offset: float = (-0.01, -0.01 * 0.9, -0.01 * 1.1)
     # leg_mass: float = (0.1, 0.1 * 0.9, 0.1 * 1.1)
     # feet_mass: float = (0.13, 0.13 * 0.9, 0.13 * 1.1)
@@ -55,7 +58,10 @@ class ParamRange:
 
     # hip_kp: float = (1.5, 1.5 * 0.9, 1.5 * 1.1)
     # hip_kd: float = (3e-2, 3e-2 * 0.9, 3e-2 * 1.1)
-    amplitude: float = tuple(a * np.pi / 180 for a in (35, 20, 45))
+    
+    
+    #Actuation
+    amplitude: float = tuple(a * np.pi / 180 for a in (28, 10, 45)) #Min was 20, decreasing to 10
     frequency: float = (1.5, 1.2, 2.2)
 
 

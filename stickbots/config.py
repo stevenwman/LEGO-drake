@@ -1,17 +1,31 @@
 from dataclasses import dataclass, field
 
 
-@dataclass
+@dataclass(init=False)
 class FeetVars:
-    """
-    Parameters for foot geometry generation
-    """
-    X: float = 0.24
-    Y: float = 0.24
-    Z: float = 0.24
-    box_x: float = 0.101
-    box_y: float = 0.0527
-    fn: int = 100 # mesh resolution    
+    X: float
+    Y: float
+    Z: float
+    box_x: float
+    box_y: float
+    fn: int
+
+    def __init__(
+        self,
+        X=0.24,
+        Y=0.24,
+        Z=0.24,
+        box_x=0.101,
+        box_y=0.0527,
+        fn=100
+    ):
+        self.X = X
+        self.Y = Y
+        self.Z = Z
+        self.box_x = box_x
+        self.box_y = box_y
+        self.fn = fn
+
 
     
 @dataclass

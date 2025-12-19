@@ -39,7 +39,8 @@ def build_stickbot(
     mesh_lock = mesh_dir / "mesh.lock"
     with FileLock(str(mesh_lock)):
         if left_obj.exists() and right_obj.exists():
-            print("Mesh already exists.", end=" ")
+            #print("Mesh already exists.", end=" ")
+            None
         else:
             stickbot_dir = Path(__file__).resolve().parents[0]
             generate_feet_geom(mesh_params, str(stickbot_dir), mesh_dir)
